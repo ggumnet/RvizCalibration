@@ -1,0 +1,41 @@
+<launch>
+  <param name="/auto_start" value="True"/>
+  <param name="/launch_hw" value="local" />
+
+  <arg name="namespace" default="graph_editor"/>
+
+  <node name="map_manager_node" pkg="rf_map_build_manager" type="rf_map_build_manager" output="screen"/>
+  <group ns="$(arg namespace)">
+    <node pkg="rf_launch_manager" name="topic_available_hw_notifier_node" type="topic_available_hw_notifier_node" output="screen"/>
+
+    <node pkg="pointcloud_tools" name="pointcloud_server" type="pointcloud_server" output="screen">
+      <param name="num_threads" type="int" value="16" />
+    </node>
+
+    <node pkg="pointcloud_tools" name="ndt_matcher_server" type="ndt_matcher_server" output="screen">
+      <param name="num_threads" type="int" value="4" />
+    </node>
+
+    <node pkg="pg_editor" name="graph_editor_server" type="graph_editor_server" output="screen">
+      <param name="pose_cell_size" value="5.0" />
+      <param name="point_cell_size" value="0.1" />
+      <param name="min_num_hit" value="3" />
+    </node>
+
+    <node pkg="pg_editor" name="mapper_server" type="mapper_server" output="screen" required="false">
+      <param name="num_threads" type="int" value="4" />
+      <param name="marker_width" type="double" value="1e-1" />
+    </node>
+    <node name="map_tf_broadcaster_local" pkg="rf_tf_broadcaster" type="map_tf_broadcaster_node" output="screen" />
+    <node name="sensor_tf_broadcaster_local" pkg="rf_tf_broadcaster" type="sensor_tf_broadcaster_node" output="screen" />
+    <param name="/Midfielder/TF/sensor_tf_broadcaster_local/package_name_for_relative_path" value="sensor_calibration" />
+    <param name="/Midfielder/TF/sensor_tf_broadcaster_local/calib_dir" value="data/Released"/>z
+
+    <node pkg="pg_editor" name="pre_processing" type="pre_processing" output="screen">
+    </node>
+
+    <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" respawn="true" />
+
+    <node pkg="rviz" name="rviz" type="rviz" args="-d $(find pg_editor)/rviz/pg_editor.rviz" output="screen"/>
+  </group>
+</launch>

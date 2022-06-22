@@ -1,0 +1,7 @@
+rideflux_msgs/SensorDataID[] data_ids
+bool with_sensors
+---
+geometry_msgs/Pose[] poses
+uint64[] variable_indices
+geometry_msgs/Pose[] frame_poses
+rideflux_msgs/SensorFrameID[] frame_ids

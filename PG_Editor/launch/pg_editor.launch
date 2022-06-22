@@ -1,0 +1,53 @@
+<launch>
+  <param name="/auto_start" value="True"/>
+  <arg name="launch_hw" default="local"/>
+  
+  <arg name="load_graph_num" default ="999"/>
+  
+
+  <param name="/launch_hw" value="$(arg launch_hw)"/>
+
+  <node pkg="pg_editor" name="pg_editor_node" type="pg_editor_node" output="screen">
+
+      <param name="load_graph_num" value ="$(arg load_graph_num)"/>
+  </node>
+  
+  <arg name="namespace" default="graph_editor"/>
+
+  <group ns="$(arg namespace)">
+    <node pkg="pointcloud_tools" name="pointcloud_server" type="pointcloud_server" output="screen">
+    </node>
+
+    <node pkg="pointcloud_tools" name="ndt_matcher_server" type="ndt_matcher_server" output="screen">
+      <param name="num_threads" type="int" value="4" />
+    </node>
+
+    <node pkg="pg_editor" name="graph_editor_server" type="graph_editor_server" output="screen">
+      <param name="pose_cell_size" value="5.0" />
+      <param name="point_cell_size" value="0.1" />
+      <param name="min_num_hit" value="3" />
+    </node>
+
+    <node pkg="pg_editor" name="mapper_server" type="mapper_server" output="screen" required="false">
+      <param name="num_threads" type="int" value="4" />
+      <param name="marker_width" type="double" value="1e-1" />
+    </node>
+
+    <!--<param name="system/Area" value="$(arg area)" />-->
+    <node name="map_tf_broadcaster_local" pkg="rf_tf_broadcaster" type="map_tf_broadcaster_node" output="screen" />
+    <node name="sensor_tf_broadcaster_local" pkg="rf_tf_broadcaster" type="sensor_tf_broadcaster_node" />
+    <param name="/Midfielder/TF/sensor_tf_broadcaster/package_name_for_relative_path" value="sensor_calibration" />
+    <param name="/Midfielder/TF/sensor_tf_broadcaster/calib_dir" value="data/Released"/>
+
+    <node pkg="pg_editor" name="file_converter" type="file_converter" output="screen">
+    </node>
+
+    <!-- <include file="$(find pc_builder)/launch/pc_bin_to_tree.launch">
+      <arg name="build_now" value="false"/>
+    </include> -->
+
+    <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" respawn="true" />
+
+    <node pkg="rviz" name="rviz" type="rviz" args="-d $(find pg_editor)/rviz/pg_editor.rviz" output="screen"/>
+  </group>
+</launch>

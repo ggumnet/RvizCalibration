@@ -1,0 +1,7 @@
+rideflux_msgs/SensorDataID data_id_ref
+rideflux_msgs/SensorDataID data_id_in
+geometry_msgs/Pose pose
+float64[36] H
+bool is_reliable
+rideflux_msgs/SensorFrameID frame_id_ref
+rideflux_msgs/SensorFrameID frame_id_in
