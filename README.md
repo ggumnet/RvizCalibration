@@ -10,4 +10,7 @@ catkin_make install
 ```
 - install 폴더를 CalibraionProject가 세팅 된 ws 하위 폴더로 복사.
 - source 경로를 CalibraionProject_ws의 install 폴더로 설정
+``` 
+source ~/CalibrationProject_ws/install/setup.bash
+```
 - CalibraionProject_ws 빌드 
