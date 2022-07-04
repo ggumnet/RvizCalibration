@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(pg_editor)
+project(toyproject2)
 
  
 add_compile_options(-std=c++14)
@@ -20,9 +20,9 @@ find_package(catkin REQUIRED COMPONENTS
   pointcloud_tools
   rideflux_msgs
   rf_nd_tree
+  tf
   # rf_map_build_manager
 )
-
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -41,16 +41,17 @@ find_package(PythonLibs 2.7)
 # set(rf_lib "/home/gw/rf_lib_ws/install/lib/libNDT_GPU_LIB.so;/home/gw/rf_lib_ws/install/lib/libpg_lib.so;/home/gw/rf_lib_ws/install/lib/libpointcloud_tools.so;/home/gw/rf_lib_ws/install/lib/librf_nd_tree.so")
 add_message_files(
   FILES
-  FactorInfo.msg
-  VariableInfo.msg
-  AbsolutePoseFactorInfo.msg
-  AbsolutePointFactorInfo.msg
-  RelativePose2FactorInfo.msg
+  TransformationInfo.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
 )
 
 catkin_package(
 #  INCLUDE_DIRS include
- CATKIN_DEPENDS dynamic_reconfigure interactive_markers pcl_ros roscpp std_srvs tf2_ros message_generation
+ CATKIN_DEPENDS dynamic_reconfigure interactive_markers pcl_ros roscpp std_srvs tf2_ros message_generation message_runtime
 #  DEPENDS system_lib
 )
 
@@ -61,25 +62,37 @@ include_directories(
   ${PYTHON_INCLUDE_DIRS}
 )
 
-add_executable(sensor_calib_node src/sensor_calib_node.cpp)
-target_link_libraries(sensor_calib_node
+add_executable(sensor_calib_node2 src/sensor_calib_node.cpp)
+target_link_libraries(sensor_calib_node2
   # ${rf_lib}
   ${catkin_LIBRARIES}
-  # ${MKL_LIBRARIES}
+  ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
 )
-add_dependencies(sensor_calib_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(sensor_calib_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+message(MKL_LIBRARIES: ${MKL_LIBRARIES})
 
-add_executable(ndt_matcher_example_node src/ndt_matcher_example_node.cpp)
-target_link_libraries(ndt_matcher_example_node
+add_executable(ndt_matcher_example_node2 src/ndt_matcher_example_node.cpp)
+target_link_libraries(ndt_matcher_example_node2
   # ${rf_lib}
   ${catkin_LIBRARIES}
-  # ${MKL_LIBRARIES}
+  ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
 )
-add_dependencies(ndt_matcher_example_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(ndt_matcher_example_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-install(TARGETS sensor_calib_node ndt_matcher_example_node
+add_executable(tf_visualizer_node2 src/tf_visualizer_node.cpp)
+target_link_libraries(tf_visualizer_node2
+  # ${rf_lib}
+  ${catkin_LIBRARIES}
+  ${MKL_LIBRARIES}
+  # ${TBB_LIBRARIES}
+)
+
+add_dependencies(tf_visualizer_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+
+install(TARGETS sensor_calib_node2 ndt_matcher_example_node2 tf_visualizer_node2
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
