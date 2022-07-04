@@ -21,10 +21,6 @@ int main(int argc, char **argv){
 
     auto factor = var->getFactor(0).lock();
     ROS_INFO("factor tpye: %d",factor->type());
-    
-    
-
 
     
-
 }
