@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(toyproject2)
+project(pg_editor)
 
  
 add_compile_options(-std=c++14)
@@ -62,14 +62,14 @@ include_directories(
   ${PYTHON_INCLUDE_DIRS}
 )
 
-add_executable(sensor_calib_node2 src/sensor_calib_node.cpp)
-target_link_libraries(sensor_calib_node2
+add_executable(pose_graph_example_node src/pose_graph_example_node.cpp)
+target_link_libraries(pose_graph_example_node
   # ${rf_lib}
   ${catkin_LIBRARIES}
   ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
 )
-add_dependencies(sensor_calib_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(pose_graph_example_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 message(MKL_LIBRARIES: ${MKL_LIBRARIES})
 
 add_executable(ndt_matcher_example_node2 src/ndt_matcher_example_node.cpp)
@@ -92,7 +92,7 @@ target_link_libraries(tf_visualizer_node2
 add_dependencies(tf_visualizer_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
-install(TARGETS sensor_calib_node2 ndt_matcher_example_node2 tf_visualizer_node2
+install(TARGETS pose_graph_example_node ndt_matcher_example_node2 tf_visualizer_node2
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
