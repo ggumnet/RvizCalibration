@@ -88,11 +88,19 @@ target_link_libraries(tf_visualizer_node2
   ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
 )
-
 add_dependencies(tf_visualizer_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+add_executable(interactive_marker src/interactive_marker.cpp)
+target_link_libraries(interactive_marker
+  # ${rf_lib}
+  ${catkin_LIBRARIES}
+  ${MKL_LIBRARIES}
+  # ${TBB_LIBRARIES}
+)
+add_dependencies(interactive_marker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-install(TARGETS pose_graph_example_node ndt_matcher_example_node2 tf_visualizer_node2
+
+install(TARGETS pose_graph_example_node ndt_matcher_example_node2 tf_visualizer_node2 interactive_marker
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

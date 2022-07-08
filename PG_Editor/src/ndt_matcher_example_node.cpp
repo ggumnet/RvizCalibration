@@ -11,6 +11,7 @@
 #include <pointcloud_tools/ndt_matcher_gpu.h>
 
 #include <pg_editor/TransformationInfo.h>
+#include <gihyun_custom/rot2quat.h>
 
 
 using pointcloud_tools::NDTOctreeGPU;
@@ -242,88 +243,6 @@ Transform matchTwoPCs(sensor_msgs::PointCloud2 &pc1, sensor_msgs::PointCloud2 &p
   return T_est1;
 }
 
-inline float SIGN(float x) { 
-	return (x >= 0.0f) ? +1.0f : -1.0f; 
-}
-
-inline float NORM(float a, float b, float c, float d) { 
-	return sqrt(a * a + b * b + c * c + d * d); 
-}
-
-tf::Quaternion mRot2Quat(cv::Matx<double, 3UL, 3UL> m) {
-    tf::Quaternion quaternion;
-
-	float r11 = m.val[0];
-	float r12 = m.val[1];
-	float r13 = m.val[2];
-	float r21 = m.val[3];
-	float r22 = m.val[4];
-	float r23 = m.val[5];
-	float r31 = m.val[6];
-	float r32 = m.val[7];
-	float r33 = m.val[8];
-	float q0 = (r11 + r22 + r33 + 1.0f) / 4.0f;
-	float q1 = (r11 - r22 - r33 + 1.0f) / 4.0f;
-	float q2 = (-r11 + r22 - r33 + 1.0f) / 4.0f;
-	float q3 = (-r11 - r22 + r33 + 1.0f) / 4.0f;
-
-
-	if (q0 < 0.0f) {
-		q0 = 0.0f;
-	}
-	if (q1 < 0.0f) {
-		q1 = 0.0f;
-	}
-	if (q2 < 0.0f) {
-		q2 = 0.0f;
-	}
-	if (q3 < 0.0f) {
-		q3 = 0.0f;
-	}
-	q0 = sqrt(q0);
-	q1 = sqrt(q1);
-	q2 = sqrt(q2);
-	q3 = sqrt(q3);
-    
-	if (q0 >= q1 && q0 >= q2 && q0 >= q3) {
-		q0 *= +1.0f;
-		q1 *= SIGN(r32 - r23);
-		q2 *= SIGN(r13 - r31);
-		q3 *= SIGN(r21 - r12);
-	}
-	else if (q1 >= q0 && q1 >= q2 && q1 >= q3) {
-		q0 *= SIGN(r32 - r23);
-		q1 *= +1.0f;
-		q2 *= SIGN(r21 + r12);
-		q3 *= SIGN(r13 + r31);
-	}
-	else if (q2 >= q0 && q2 >= q1 && q2 >= q3) {
-		q0 *= SIGN(r13 - r31);
-		q1 *= SIGN(r21 + r12);
-		q2 *= +1.0f;
-		q3 *= SIGN(r32 + r23);
-	}
-	else if (q3 >= q0 && q3 >= q1 && q3 >= q2) {
-		q0 *= SIGN(r21 - r12);
-		q1 *= SIGN(r31 + r13);
-		q2 *= SIGN(r32 + r23);
-		q3 *= +1.0f;
-	}
-	else {
-		printf("coding error\n");
-	}
-	float r = NORM(q0, q1, q2, q3);
-	q0 /= r;
-	q1 /= r;
-	q2 /= r;
-	q3 /= r;
-
-	quaternion.setW(q0);
-    quaternion.setX(q1);
-    quaternion.setY(q2);
-    quaternion.setZ(q3);
-	return quaternion;
-}
 
 Transform iterative_ndt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, sensor_msgs::PointCloud2 pc_est, float cell_size1, float cell_size2){
     MatchingOptions option;
@@ -338,42 +257,28 @@ Transform iterative_ndt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, senso
 int main(int argc, char **argv){
     ros::init(argc, argv, "ndt_matcher_example_node");
     ros::NodeHandle nh("~");
+
+
     
-    rideflux_msgs::SensorDataID data_id1;
-    data_id1.vehicle = "v5_1_sample_data";
-    data_id1.bag_time = "2022-04-08-10-57-11";
+    rideflux_msgs::SensorDataID data_id1, data_id2, data_id3, data_id4, data_id5;
+    data_id1.vehicle = data_id2.vehicle = data_id3.vehicle = data_id4.vehicle = data_id5.vehicle = "v5_1_sample_data";
+    data_id1.bag_time = data_id2.bag_time = data_id3.bag_time = data_id4.bag_time = data_id5.bag_time = "2022-04-08-10-57-11";
+    data_id1.time_step = data_id2.time_step = data_id3.time_step = data_id4.time_step = data_id5.time_step = 0;
+    
     data_id1.sensor = "pandar64_0";
-    data_id1.time_step = 0;
-
-    rideflux_msgs::SensorDataID data_id2;
-    data_id2.vehicle = "v5_1_sample_data";
-    data_id2.bag_time = "2022-04-08-10-57-11";
     data_id2.sensor = "pandar64_1";
-    data_id2.time_step = 0;
-
-    rideflux_msgs::SensorDataID data_id3;
-    data_id3.vehicle = "v5_1_sample_data";
-    data_id3.bag_time = "2022-04-08-10-57-11";
     data_id3.sensor = "xt32_0";
-    data_id3.time_step = 0;
-
-    rideflux_msgs::SensorDataID data_id4;
-    data_id4.vehicle = "v5_1_sample_data";
-    data_id4.bag_time = "2022-04-08-10-57-11";
     data_id4.sensor = "xt32_1";
-    data_id4.time_step = 0;
-
-    rideflux_msgs::SensorDataID data_id5;
-    data_id5.vehicle = "v5_1_sample_data";
-    data_id5.bag_time = "2022-04-08-10-57-11";
     data_id5.sensor = "xt32_2";
-    data_id5.time_step = 0;
+    
 
 
     std::vector<std::string> field_names{"x","y","z","intensity"};
 
     sensor_msgs::PointCloud2 pc_pandar0, pc_pandar1, pc_xt0, pc_xt1, pc_xt2;
     sensor_msgs::PointCloud2 pc_fixed_pandar0, pc_fixed_pandar1, pc_fixed_xt0, pc_fixed_xt1, pc_fixed_xt2;
+    sensor_msgs::PointCloud2 pc_pgo_pandar0, pc_pgo_pandar1, pc_pgo_xt0, pc_pgo_xt1, pc_pgo_xt2;
+    
     
     readPointcloud(data_id1, field_names, pc_pandar0);
     readPointcloud(data_id2, field_names, pc_pandar1);
@@ -386,6 +291,12 @@ int main(int argc, char **argv){
     readPointcloud(data_id3, field_names, pc_fixed_xt0);
     readPointcloud(data_id4, field_names, pc_fixed_xt1);
     readPointcloud(data_id5, field_names, pc_fixed_xt2);
+
+    readPointcloud(data_id1, field_names, pc_pgo_pandar0);
+    readPointcloud(data_id2, field_names, pc_pgo_pandar1);
+    readPointcloud(data_id3, field_names, pc_pgo_xt0);
+    readPointcloud(data_id4, field_names, pc_pgo_xt1);
+    readPointcloud(data_id5, field_names, pc_pgo_xt2);
 
 
     pc_xt0.header.frame_id = "xt32_0";
@@ -400,6 +311,12 @@ int main(int argc, char **argv){
     pc_fixed_pandar0.header.frame_id = "fixed_pandar0";
     pc_fixed_pandar1.header.frame_id = "fixed_pandar1";
     
+    pc_pgo_xt0.header.frame_id = "pgo_xt32_0";
+    pc_pgo_xt1.header.frame_id = "pgo_xt32_1";
+    pc_pgo_xt2.header.frame_id = "pgo_xt32_2";
+    pc_pgo_pandar0.header.frame_id = "pgo_pandar0";
+    pc_pgo_pandar1.header.frame_id = "pgo_pandar1";
+
     ros::Publisher pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt0", 1);
     ros::Publisher pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt1", 1);
     ros::Publisher pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt2", 1);
@@ -412,18 +329,29 @@ int main(int argc, char **argv){
     ros::Publisher pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pandar0", 1);
     ros::Publisher pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pandar1", 1);
 
+
+
     ros::Publisher fixed_pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_xt0", 1);
     ros::Publisher fixed_pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_xt1", 1);
     ros::Publisher fixed_pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_xt2", 1);
     ros::Publisher fixed_pc_pd0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_pandar0", 1);
     ros::Publisher fixed_pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_pandar1", 1);
 
-
     ros::Publisher fixed_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_xt32_0", 1);
     ros::Publisher fixed_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_xt32_1", 1);
     ros::Publisher fixed_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_xt32_2", 1);
     ros::Publisher fixed_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_pandar0", 1);
     ros::Publisher fixed_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_pandar1", 1);
+
+
+
+    ros::Publisher pgo_pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pgo_xt0", 1);
+    ros::Publisher pgo_pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pgo_xt1", 1);
+    ros::Publisher pgo_pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pgo_xt2", 1);
+    ros::Publisher pgo_pc_pd0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pgo_pandar0", 1);
+    ros::Publisher pgo_pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pgo_pandar1", 1);
+
+
     
     MatchingOptions option;
     // Transform T_init = Transform::eye();
@@ -431,6 +359,7 @@ int main(int argc, char **argv){
 
     Transform T_xt0, T_xt1, T_xt2, T_pd0, T_pd1;
     Transform T_fixed_xt0, T_fixed_xt1, T_fixed_xt2, T_fixed_pd0, T_fixed_pd1;
+    Transform T_xt0_to_pd1;
 
     //ROS_INFO_STREAM("T_est\n" << T_est);
 
@@ -462,10 +391,15 @@ int main(int argc, char **argv){
     T_fixed_xt2 = T_fixed_xt1*iterative_ndt(T_xt1.inv()*T_xt2, pc_fixed_xt1, pc_fixed_xt2, 0.4, 0.2);
     */
     
+
+    //T_fixed_pd1 = T_xt0.inv()*T_pd1;
+
     T_fixed_pd1 = iterative_ndt(T_pd0.inv()*T_pd1, pc_fixed_pandar0, pc_fixed_pandar1, 0.4, 0.2);
     T_fixed_xt0 = iterative_ndt(T_pd0.inv()*T_xt0, pc_fixed_pandar0, pc_fixed_xt0, 0.4, 0.2);
     T_fixed_xt1 = iterative_ndt(T_pd1.inv()*T_xt1, pc_fixed_pandar1, pc_fixed_xt1, 0.4, 0.2);
     T_fixed_xt2 = iterative_ndt(T_xt1.inv()*T_xt2, pc_fixed_xt1, pc_fixed_xt2, 0.4, 0.2);
+
+    T_xt0_to_pd1 = iterative_ndt(T_xt0.inv()*T_pd1, pc_fixed_xt0, pc_fixed_pandar1, 0.4, 0.2);
     
     
     //Optimization ends
@@ -562,6 +496,13 @@ int main(int argc, char **argv){
         }
     }
 
+    rotation = T_xt0_to_pd1.getRotation();
+    cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
+    cv_translation_vector = T_xt0_to_pd1.getTranslation();
+    quaternion = mRot2Quat(cv_rotation_matrix);
+
+    ROS_INFO("xt0 to pd1: %f, %f, %f, %f, %f, %f, %f", cv_translation_vector[0], cv_translation_vector[1], cv_translation_vector[2], quaternion.getX(), quaternion.getY(), quaternion.getZ(), quaternion.getW());  
+
     tf::Matrix3x3 mat(quaternion);
 
 
@@ -584,6 +525,7 @@ int main(int argc, char **argv){
         pd0_pub.publish(transforminfos_pd0);
         pd1_pub.publish(transforminfos_pd1);
 
+
         pc_fixed_pandar0.header.stamp = ros::Time::now();
         pc_fixed_pandar1.header.stamp = ros::Time::now();
         pc_fixed_xt0.header.stamp = ros::Time::now();
@@ -601,6 +543,21 @@ int main(int argc, char **argv){
         fixed_xt32_2_pub.publish(transforminfos_fixed_xt2);
         fixed_pd0_pub.publish(transforminfos_fixed_pd0);
         fixed_pd1_pub.publish(transforminfos_fixed_pd1);
+
+
+        pc_pgo_pandar0.header.stamp = ros::Time::now();
+        pc_pgo_pandar1.header.stamp = ros::Time::now();
+        pc_pgo_xt0.header.stamp = ros::Time::now();
+        pc_pgo_xt1.header.stamp = ros::Time::now();
+        pc_pgo_xt2.header.stamp = ros::Time::now();
+
+        pgo_pc_pd0_pub.publish(pc_pgo_pandar0);
+        pgo_pc_pd1_pub.publish(pc_pgo_pandar1);
+        pgo_pc_xt0_pub.publish(pc_pgo_xt0);
+        pgo_pc_xt1_pub.publish(pc_pgo_xt1);
+        pgo_pc_xt2_pub.publish(pc_pgo_xt2);
+    
+
         ros::Duration(0.1).sleep();
     }
     return 0;

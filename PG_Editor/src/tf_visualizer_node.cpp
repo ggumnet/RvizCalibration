@@ -7,10 +7,12 @@
 const int N=5;
 tf::Transform trforms[N];
 tf::Transform fixed_trforms[N];
+tf::Transform pgo_trforms[N];
+
 
 void tf_handler_callback(const pg_editor::TransformationInfoConstPtr &msg)
 {
-    ROS_INFO("called\n");
+    //ROS_INFO("called\n");
     tf::Transform* trform;
     trform = &trforms[msg->frame_num];
 
@@ -20,12 +22,24 @@ void tf_handler_callback(const pg_editor::TransformationInfoConstPtr &msg)
 
 void fixed_tf_handler_callback(const pg_editor::TransformationInfoConstPtr &msg)
 {
-    ROS_INFO("called\n");
+    //ROS_INFO("called\n");
     tf::Transform* trform;
     trform = &fixed_trforms[msg->frame_num];
 
     trform->setRotation(tf::Quaternion(msg->qx, msg->qy, msg->qz, msg->qw));
     trform->setOrigin(tf::Vector3(msg->tx, msg->ty, msg->tz));
+}
+
+void pgo_tf_handler_callback(const pg_editor::TransformationInfoConstPtr &msg)
+{
+    //ROS_INFO("pgo called\n");
+    tf::Transform* trform;
+    trform = &pgo_trforms[msg->frame_num];
+
+    trform->setRotation(tf::Quaternion(msg->qx, msg->qy, msg->qz, msg->qw));
+    trform->setOrigin(tf::Vector3(msg->tx, msg->ty, msg->tz));
+
+    //ROS_INFO("%f, %f, %f, %f, %f, %f, %f", msg->tx, msg->ty, msg->tz, msg->qw, msg->qx, msg->qy, msg->qz); 
 }
 
 int main(int argc, char **argv)
@@ -47,6 +61,12 @@ int main(int argc, char **argv)
     ros::Subscriber fixed_pd0_subs = nh.subscribe("/fixed_pandar0", 1, fixed_tf_handler_callback);
     ros::Subscriber fixed_pd1_subs = nh.subscribe("/fixed_pandar1", 1, fixed_tf_handler_callback);
 
+    ros::Subscriber pgo_xt32_0_subs = nh.subscribe("/pgo_xt32_0", 1, pgo_tf_handler_callback);
+    ros::Subscriber pgo_xt32_1_subs = nh.subscribe("/pgo_xt32_1", 1, pgo_tf_handler_callback);
+    ros::Subscriber pgo_xt32_2_subs = nh.subscribe("/pgo_xt32_2", 1, pgo_tf_handler_callback);
+    ros::Subscriber pgo_pd0_subs = nh.subscribe("/pgo_pandar0", 1, pgo_tf_handler_callback);
+    ros::Subscriber pgo_pd1_subs = nh.subscribe("/pgo_pandar1", 1, pgo_tf_handler_callback);
+
 
     while (ros::ok())
     {
@@ -58,18 +78,24 @@ int main(int argc, char **argv)
             broadcaster.sendTransform(tf::StampedTransform(trforms[3], ros::Time::now(), "antenna", "pandar0"));
             broadcaster.sendTransform(tf::StampedTransform(trforms[4], ros::Time::now(), "antenna", "pandar1"));            
             
-
-            // broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[0], ros::Time::now(), "fixed_antenna", "fixed_xt32_0"));
-            // broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[1], ros::Time::now(), "fixed_antenna", "fixed_xt32_1"));
-            // broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[2], ros::Time::now(), "fixed_antenna", "fixed_xt32_2"));
-            // broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[3], ros::Time::now(), "fixed_antenna", "fixed_pandar0"));
-            // broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[4], ros::Time::now(), "fixed_antenna", "fixed_pandar1"));
-
             broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[0], ros::Time::now(), "fixed_pandar0", "fixed_xt32_0"));
             broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[1], ros::Time::now(), "fixed_pandar1", "fixed_xt32_1"));
             broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[2], ros::Time::now(), "fixed_xt32_1", "fixed_xt32_2"));
             broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[3], ros::Time::now(), "fixed_antenna", "fixed_pandar0"));
             broadcaster.sendTransform(tf::StampedTransform(fixed_trforms[4], ros::Time::now(), "fixed_pandar0", "fixed_pandar1"));
+            
+            // broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[0], ros::Time::now(), "pgo_antenna", "pgo_xt32_0"));
+            // broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[1], ros::Time::now(), "pgo_antenna", "pgo_xt32_1"));
+            // broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[2], ros::Time::now(), "pgo_antenna", "pgo_xt32_2"));
+            // broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[3], ros::Time::now(), "pgo_antenna", "pgo_pandar0"));
+            // broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[4], ros::Time::now(), "pgo_antenna", "pgo_pandar1"));
+
+            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[0], ros::Time::now(), "pgo_antenna", "pgo_pandar0"));
+            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[1], ros::Time::now(), "pgo_antenna", "pgo_pandar1"));  
+            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[2], ros::Time::now(), "pgo_antenna", "pgo_xt32_0"));
+            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[3], ros::Time::now(), "pgo_antenna", "pgo_xt32_1"));
+            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[4], ros::Time::now(), "pgo_antenna", "pgo_xt32_2"));
+                    
 
             ros::Duration(1.0).sleep();
         }
