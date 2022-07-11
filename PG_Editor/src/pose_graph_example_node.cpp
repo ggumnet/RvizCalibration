@@ -12,30 +12,36 @@ using namespace pg_lib;
 
 void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher &poses_pub, ros::Publisher &pose_pc_pub, std::string frame_id)
 {
-    visualization_msgs::Marker marker;
+
+    //marker: vertex
+    //
+    visualization_msgs::Marker edge;
     geometry_msgs::PoseArray pose_array;
     std::vector<std::size_t> indices;
-    graph.createMsgToVisualize(marker, pose_array, indices);
-    
+    graph.createMsgToVisualize(edge, pose_array, indices);
+
     if (!indices.empty())
     {
-        marker.header.frame_id = pose_array.header.frame_id = frame_id;
-        marker.header.stamp = pose_array.header.stamp = ros::Time::now();
+        //marker: connection between vertices(edge)
+        //pc: vertex
+        edge.header.frame_id = pose_array.header.frame_id = frame_id;
+        edge.header.stamp = pose_array.header.stamp = ros::Time::now();
 
         ros::NodeHandle nh_priv("~");
-        marker.id = 0;
-        marker.ns = "edges";
+        edge.id = 0;
+        edge.ns = "edges";
         //marker.color.a = 1;
         //marker.color.r = 1;
-        marker.scale.x = 0.2;
-        marker.pose.orientation.x = 0;
-        marker.pose.orientation.y = 0;
-        marker.pose.orientation.z = 0;
-        marker.pose.orientation.w = 1;
+        edge.scale.x = 0.2;
+        edge.pose.orientation.x = 0;
+        edge.pose.orientation.y = 0;
+        edge.pose.orientation.z = 0;
+        edge.pose.orientation.w = 1;
 
-        edge_pub.publish(marker);
+        edge_pub.publish(edge);
         poses_pub.publish(pose_array);
 
+        /*
         sensor_msgs::PointCloud2 pose_pc_msg;
         pose_pc_msg.header.frame_id = frame_id;
         pose_pc_msg.header.stamp = ros::Time::now();
@@ -84,7 +90,38 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
         ++n;
         }
 
-        pose_pc_pub.publish(pose_pc_msg);
+        pose_pc_pub.publish(pose_pc_msg);*/
+        
+        visualization_msgs::MarkerArray vertices;
+
+        for(const auto &pose : pose_array.poses){
+            visualization_msgs::Marker vertex;
+            vertex.header.frame_id = frame_id;
+            vertex.header.stamp = ros::Time::now();
+            vertex.type = visualization_msgs::Marker::SPHERE;
+            vertex.action = visualization_msgs::Marker::ADD;
+            vertex.scale.x = 0.5;
+            vertex.scale.y = 0.5;
+            vertex.scale.z = 0.5;
+            vertex.color.r = 0;
+            vertex.color.g = 0;
+            vertex.color.b = 1;
+            vertex.color.a = 1.0;
+            vertex.pose.position.x = pose.position.x;
+            vertex.pose.position.y = pose.position.y;
+            vertex.pose.position.z = pose.position.z;
+            vertex.pose.orientation.w = pose.orientation.w;
+            vertex.pose.orientation.x = pose.orientation.x;
+            vertex.pose.orientation.y = pose.orientation.y;
+            vertex.pose.orientation.z = pose.orientation.z;
+            vertices.markers.push_back(vertex);
+            pose_pc_pub.publish(vertices);
+        }
+        // ROS_INFO("X: %f", vertices.markers.at(0).pose.position.x);
+        // ROS_INFO("X: %f", vertices.markers.at(1).pose.position.x);
+        // ROS_INFO("X: %f", vertices.markers.at(2).pose.position.x);
+        // ROS_INFO("X: %f", vertices.markers.at(3).pose.position.x);
+        // ROS_INFO("X: %f", vertices.markers.at(4).pose.position.x);
     }
 }
 
@@ -138,7 +175,7 @@ int main(int argc, char **argv){
     Graph graph1, graph2;
         
     pointcloud_tools::SensorDataID id;
-    id.bag_time = "2022-06-14-17-30-13";
+    id.bag_time = "2022-07-05-18-01-07";
     id.sensor = "pandar64_0";
     id.time_step = 0;
     id.vehicle = "solati_v5_1";
@@ -268,7 +305,7 @@ int main(int argc, char **argv){
 
     ros::Publisher edge_pub1 = nh.advertise<visualization_msgs::Marker>("graph_edge1",1, true);
     ros::Publisher pose_pub1 = nh.advertise<geometry_msgs::PoseArray>("graph_pose1",1, true);
-    ros::Publisher pose_pc_pub1 = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc1",1, true);
+    ros::Publisher pose_pc_pub1 = nh.advertise<visualization_msgs::MarkerArray>("graph_pose_pc1",1, true);
 
     visualizeGraph(graph1,edge_pub1, pose_pub1, pose_pc_pub1, "fixed_antenna");
 
@@ -366,7 +403,7 @@ int main(int argc, char **argv){
 
     ros::Publisher edge_pub2 = nh.advertise<visualization_msgs::Marker>("graph_edge2",1, true);
     ros::Publisher pose_pub2 = nh.advertise<geometry_msgs::PoseArray>("graph_pose2",1, true);
-    ros::Publisher pose_pc_pub2 = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc2",1, true);
+    ros::Publisher pose_pc_pub2 = nh.advertise<visualization_msgs::MarkerArray>("graph_pose_pc2",1, true);
 
     visualizeGraph(graph2, edge_pub2, pose_pub2, pose_pc_pub2, "pgo_antenna");
 
