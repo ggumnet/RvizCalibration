@@ -21,38 +21,38 @@ MenuHandler::EntryHandle h_mode_last;
 
 void enableCb(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
 {
-    MenuHandler::EntryHandle handle = feedback->menu_entry_id;
-    MenuHandler::CheckState state;
-    menu_handler.getCheckState(handle, state);
+    // MenuHandler::EntryHandle handle = feedback->menu_entry_id;
+    // MenuHandler::CheckState state;
+    // menu_handler.getCheckState(handle, state);
 
-    if (state == MenuHandler::CHECKED)
-    {
-        menu_handler.setCheckState(handle, MenuHandler::UNCHECKED);
-        ROS_INFO("Hiding first menu entry");
-        menu_handler.setVisible(h_first_entry, false);
-    }
-    else
-    {
-        menu_handler.setCheckState(handle, MenuHandler::CHECKED);
-        ROS_INFO("Showing first menu entry");
-        menu_handler.setVisible(h_first_entry, true);
-    }
-    menu_handler.reApply(*server);
-    ros::Duration(2.0).sleep();
-    ROS_INFO("update");
-    server->applyChanges();
+    // if (state == MenuHandler::CHECKED)
+    // {
+    //     menu_handler.setCheckState(handle, MenuHandler::UNCHECKED);
+    //     ROS_INFO("Hiding first menu entry");
+    //     menu_handler.setVisible(h_first_entry, false);
+    // }
+    // else
+    // {
+    //     menu_handler.setCheckState(handle, MenuHandler::CHECKED);
+    //     ROS_INFO("Showing first menu entry");
+    //     menu_handler.setVisible(h_first_entry, true);
+    // }
+    // menu_handler.reApply(*server);
+    // ros::Duration(2.0).sleep();
+    // ROS_INFO("update");
+    // server->applyChanges();
 }
 
 void modeCb(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
 {
-    menu_handler.setCheckState(h_mode_last, MenuHandler::UNCHECKED);
-    h_mode_last = feedback->menu_entry_id;
-    menu_handler.setCheckState(h_mode_last, MenuHandler::CHECKED);
+//     menu_handler.setCheckState(h_mode_last, MenuHandler::UNCHECKED);
+//     h_mode_last = feedback->menu_entry_id;
+//     menu_handler.setCheckState(h_mode_last, MenuHandler::CHECKED);
 
-    ROS_INFO("Switching to menu entry #%d", h_mode_last);
+//     ROS_INFO("Switching to menu entry #%d", h_mode_last);
 
-    menu_handler.reApply(*server);
-    server->applyChanges();
+//     menu_handler.reApply(*server);
+//     server->applyChanges();
 }
 
 Marker makeBox(InteractiveMarker &msg)
@@ -86,7 +86,6 @@ InteractiveMarker makeEmptyMarker(bool dummyBox = true)
     InteractiveMarker int_marker;
     int_marker.header.frame_id = "base_link";
     int_marker.pose.position.y = -3.0 * marker_pos++;
-    ;
     int_marker.scale = 1;
 
     return int_marker;

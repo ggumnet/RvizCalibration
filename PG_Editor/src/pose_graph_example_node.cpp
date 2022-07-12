@@ -4,124 +4,111 @@
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PoseArray.h>
 
+#include <interactive_markers/interactive_marker_server.h>
+#include <interactive_markers/menu_handler.h>
+
 #include <pg_editor/TransformationInfo.h>
 #include <gihyun_custom/rot2quat.h>
 
+using namespace visualization_msgs;
+using namespace interactive_markers;
 
 using namespace pg_lib;
+boost::shared_ptr<InteractiveMarkerServer> server;
+
+//make marker at the certain position
+InteractiveMarker makeEmptyMarker(geometry_msgs::Pose pose, std::string frame_id)
+{
+    InteractiveMarker int_marker;
+    int_marker.header.frame_id = frame_id;
+    int_marker.pose.position = pose.position;
+    int_marker.pose.orientation = pose.orientation;
+    int_marker.scale = 1;
+    return int_marker;
+}
+
+//make box according to the size of InteractiveMarker
+Marker makeBox(InteractiveMarker &msg)
+{
+    Marker marker;
+
+    marker.type = Marker::CUBE;
+    marker.scale.x = msg.scale * 0.45;
+    marker.scale.y = msg.scale * 0.45;
+    marker.scale.z = msg.scale * 0.45;
+    marker.color.r = 0.5;
+    marker.color.g = 0.5;
+    marker.color.b = 0.5;
+    marker.color.a = 1.0;
+
+    return marker;
+}
+
+//make menu marker and push it to server
+void makeMenuMarker(std::string name, geometry_msgs::Pose pose, std::string frame_id)
+{
+    InteractiveMarker int_marker = makeEmptyMarker(pose, frame_id);
+    int_marker.name = name;
+
+    InteractiveMarkerControl control;
+
+    control.interaction_mode = InteractiveMarkerControl::BUTTON;
+    control.always_visible = true;
+
+    control.markers.push_back(makeBox(int_marker));
+    int_marker.controls.push_back(control);
+
+    server->insert(int_marker);
+    server->applyChanges();
+}
+
+MenuHandler initMenu(geometry_msgs::Pose pose)
+{   
+    MenuHandler menu_handler;
+    menu_handler.insert("tx"+std::to_string(pose.position.x));
+    menu_handler.insert("ty"+std::to_string(pose.position.y));
+    menu_handler.insert("tz"+std::to_string(pose.position.z));
+    menu_handler.insert("qx"+std::to_string(pose.orientation.x));
+    menu_handler.insert("qy"+std::to_string(pose.orientation.y));
+    menu_handler.insert("qz"+std::to_string(pose.orientation.z));
+    menu_handler.insert("qw"+std::to_string(pose.orientation.w));
+    return menu_handler;
+}
+
 
 void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher &poses_pub, ros::Publisher &pose_pc_pub, std::string frame_id)
 {
-
-    //marker: vertex
-    //
-    visualization_msgs::Marker edge;
+    visualization_msgs::Marker marker;
     geometry_msgs::PoseArray pose_array;
     std::vector<std::size_t> indices;
-    graph.createMsgToVisualize(edge, pose_array, indices);
+    graph.createMsgToVisualize(marker, pose_array, indices); 
 
-    if (!indices.empty())
-    {
-        //marker: connection between vertices(edge)
-        //pc: vertex
-        edge.header.frame_id = pose_array.header.frame_id = frame_id;
-        edge.header.stamp = pose_array.header.stamp = ros::Time::now();
+    if(!indices.empty()){
+        marker.header.frame_id = pose_array.header.frame_id = frame_id;
+        marker.header.stamp = pose_array.header.stamp = ros::Time::now();
 
         ros::NodeHandle nh_priv("~");
-        edge.id = 0;
-        edge.ns = "edges";
+        marker.id = 0;
+        marker.ns = "edges";
         //marker.color.a = 1;
         //marker.color.r = 1;
-        edge.scale.x = 0.2;
-        edge.pose.orientation.x = 0;
-        edge.pose.orientation.y = 0;
-        edge.pose.orientation.z = 0;
-        edge.pose.orientation.w = 1;
+        marker.scale.x = 0.2;
+        marker.pose.orientation.x = 0;
+        marker.pose.orientation.y = 0;
+        marker.pose.orientation.z = 0;
+        marker.pose.orientation.w = 1;
 
-        edge_pub.publish(edge);
+        edge_pub.publish(marker);
         poses_pub.publish(pose_array);
-
-        /*
-        sensor_msgs::PointCloud2 pose_pc_msg;
-        pose_pc_msg.header.frame_id = frame_id;
-        pose_pc_msg.header.stamp = ros::Time::now();
-        pose_pc_msg.is_bigendian = false;
-        pose_pc_msg.is_dense = false;
-        pose_pc_msg.height = 1;
-        pose_pc_msg.fields.resize(4);
-        pose_pc_msg.fields[0].name = "x";
-        pose_pc_msg.fields[0].offset = 0;
-        pose_pc_msg.fields[0].count = 1;
-        pose_pc_msg.fields[0].datatype = sensor_msgs::PointField::FLOAT32;
-        pose_pc_msg.fields[1].name = "y";
-        pose_pc_msg.fields[1].offset = 4;
-        pose_pc_msg.fields[1].count = 1;
-        pose_pc_msg.fields[1].datatype = sensor_msgs::PointField::FLOAT32;
-        pose_pc_msg.fields[2].name = "z";
-        pose_pc_msg.fields[2].offset = 8;
-        pose_pc_msg.fields[2].count = 1;
-        pose_pc_msg.fields[2].datatype = sensor_msgs::PointField::FLOAT32;
-        pose_pc_msg.fields[3].name = "index";
-        pose_pc_msg.fields[3].offset = 12;
-        pose_pc_msg.fields[3].count = 1;
-        pose_pc_msg.fields[3].datatype = sensor_msgs::PointField::UINT32;
-        pose_pc_msg.point_step = 16;
-
-        // to-do : add id info of pc
-
-        auto max_index = *std::max_element(indices.begin(), indices.end())+1;
-        pose_pc_msg.width = max_index;
-        pose_pc_msg.row_step = pose_pc_msg.width * pose_pc_msg.point_step;
-        pose_pc_msg.data.resize(pose_pc_msg.row_step * pose_pc_msg.height);
-        std::size_t n = 0;
-        for (const auto &pose : pose_array.poses)
-        {
-        uint32_t index = indices[n];
-        std::size_t offset = index * pose_pc_msg.point_step;
-        float d;
-
-        d = pose.position.x;
-        std::memcpy(&pose_pc_msg.data[offset + pose_pc_msg.fields[0].offset], &d, sizeof(float));
-        d = pose.position.y;
-        std::memcpy(&pose_pc_msg.data[offset + pose_pc_msg.fields[1].offset], &d, sizeof(float));
-        d = pose.position.z;
-        std::memcpy(&pose_pc_msg.data[offset + pose_pc_msg.fields[2].offset], &d, sizeof(float));
-        std::memcpy(&pose_pc_msg.data[offset + pose_pc_msg.fields[3].offset], &index, sizeof(uint32_t));
-        ++n;
+        int i=0;
+        for(auto pose : pose_array.poses){
+            MenuHandler menu_handler;
+            i++;
+            makeMenuMarker(std::to_string(i), pose, frame_id);
+            menu_handler = initMenu(pose);
+            menu_handler.apply(*server, std::to_string(i));  
         }
-
-        pose_pc_pub.publish(pose_pc_msg);*/
-        
-        visualization_msgs::MarkerArray vertices;
-
-        for(const auto &pose : pose_array.poses){
-            visualization_msgs::Marker vertex;
-            vertex.header.frame_id = frame_id;
-            vertex.header.stamp = ros::Time::now();
-            vertex.type = visualization_msgs::Marker::SPHERE;
-            vertex.action = visualization_msgs::Marker::ADD;
-            vertex.scale.x = 0.5;
-            vertex.scale.y = 0.5;
-            vertex.scale.z = 0.5;
-            vertex.color.r = 0;
-            vertex.color.g = 0;
-            vertex.color.b = 1;
-            vertex.color.a = 1.0;
-            vertex.pose.position.x = pose.position.x;
-            vertex.pose.position.y = pose.position.y;
-            vertex.pose.position.z = pose.position.z;
-            vertex.pose.orientation.w = pose.orientation.w;
-            vertex.pose.orientation.x = pose.orientation.x;
-            vertex.pose.orientation.y = pose.orientation.y;
-            vertex.pose.orientation.z = pose.orientation.z;
-            vertices.markers.push_back(vertex);
-            pose_pc_pub.publish(vertices);
-        }
-        // ROS_INFO("X: %f", vertices.markers.at(0).pose.position.x);
-        // ROS_INFO("X: %f", vertices.markers.at(1).pose.position.x);
-        // ROS_INFO("X: %f", vertices.markers.at(2).pose.position.x);
-        // ROS_INFO("X: %f", vertices.markers.at(3).pose.position.x);
-        // ROS_INFO("X: %f", vertices.markers.at(4).pose.position.x);
+        server->applyChanges();
     }
 }
 
@@ -173,9 +160,11 @@ int main(int argc, char **argv){
     ros::NodeHandle nh("~");
 
     Graph graph1, graph2;
+
+    server.reset(new InteractiveMarkerServer("server", "", false));
         
     pointcloud_tools::SensorDataID id;
-    id.bag_time = "2022-07-05-18-01-07";
+    id.bag_time = "2022-06-14-17-30-13";
     id.sensor = "pandar64_0";
     id.time_step = 0;
     id.vehicle = "solati_v5_1";
@@ -305,7 +294,7 @@ int main(int argc, char **argv){
 
     ros::Publisher edge_pub1 = nh.advertise<visualization_msgs::Marker>("graph_edge1",1, true);
     ros::Publisher pose_pub1 = nh.advertise<geometry_msgs::PoseArray>("graph_pose1",1, true);
-    ros::Publisher pose_pc_pub1 = nh.advertise<visualization_msgs::MarkerArray>("graph_pose_pc1",1, true);
+    ros::Publisher pose_pc_pub1 = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc1",1, true);
 
     visualizeGraph(graph1,edge_pub1, pose_pub1, pose_pc_pub1, "fixed_antenna");
 
@@ -403,7 +392,7 @@ int main(int argc, char **argv){
 
     ros::Publisher edge_pub2 = nh.advertise<visualization_msgs::Marker>("graph_edge2",1, true);
     ros::Publisher pose_pub2 = nh.advertise<geometry_msgs::PoseArray>("graph_pose2",1, true);
-    ros::Publisher pose_pc_pub2 = nh.advertise<visualization_msgs::MarkerArray>("graph_pose_pc2",1, true);
+    ros::Publisher pose_pc_pub2 = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc2",1, true);
 
     visualizeGraph(graph2, edge_pub2, pose_pub2, pose_pc_pub2, "pgo_antenna");
 
