@@ -276,7 +276,7 @@ int main(int argc, char **argv){
     std::vector<std::string> field_names{"x","y","z","intensity"};
 
     sensor_msgs::PointCloud2 pc_pandar0, pc_pandar1, pc_xt0, pc_xt1, pc_xt2;
-    sensor_msgs::PointCloud2 pc_fixed_pandar0, pc_fixed_pandar1, pc_fixed_xt0, pc_fixed_xt1, pc_fixed_xt2;
+    sensor_msgs::PointCloud2 pc_tree_pandar0, pc_tree_pandar1, pc_tree_xt0, pc_tree_xt1, pc_tree_xt2;
     sensor_msgs::PointCloud2 pc_pgo_pandar0, pc_pgo_pandar1, pc_pgo_xt0, pc_pgo_xt1, pc_pgo_xt2;
     
     
@@ -286,11 +286,11 @@ int main(int argc, char **argv){
     readPointcloud(data_id4, field_names, pc_xt1);
     readPointcloud(data_id5, field_names, pc_xt2);
     
-    readPointcloud(data_id1, field_names, pc_fixed_pandar0);
-    readPointcloud(data_id2, field_names, pc_fixed_pandar1);
-    readPointcloud(data_id3, field_names, pc_fixed_xt0);
-    readPointcloud(data_id4, field_names, pc_fixed_xt1);
-    readPointcloud(data_id5, field_names, pc_fixed_xt2);
+    readPointcloud(data_id1, field_names, pc_tree_pandar0);
+    readPointcloud(data_id2, field_names, pc_tree_pandar1);
+    readPointcloud(data_id3, field_names, pc_tree_xt0);
+    readPointcloud(data_id4, field_names, pc_tree_xt1);
+    readPointcloud(data_id5, field_names, pc_tree_xt2);
 
     readPointcloud(data_id1, field_names, pc_pgo_pandar0);
     readPointcloud(data_id2, field_names, pc_pgo_pandar1);
@@ -305,11 +305,11 @@ int main(int argc, char **argv){
     pc_pandar0.header.frame_id = "pandar0";
     pc_pandar1.header.frame_id = "pandar1";
 
-    pc_fixed_xt0.header.frame_id = "fixed_xt32_0";
-    pc_fixed_xt1.header.frame_id = "fixed_xt32_1";
-    pc_fixed_xt2.header.frame_id = "fixed_xt32_2";
-    pc_fixed_pandar0.header.frame_id = "fixed_pandar0";
-    pc_fixed_pandar1.header.frame_id = "fixed_pandar1";
+    pc_tree_xt0.header.frame_id = "tree_xt32_0";
+    pc_tree_xt1.header.frame_id = "tree_xt32_1";
+    pc_tree_xt2.header.frame_id = "tree_xt32_2";
+    pc_tree_pandar0.header.frame_id = "tree_pandar0";
+    pc_tree_pandar1.header.frame_id = "tree_pandar1";
     
     pc_pgo_xt0.header.frame_id = "pgo_xt32_0";
     pc_pgo_xt1.header.frame_id = "pgo_xt32_1";
@@ -331,19 +331,17 @@ int main(int argc, char **argv){
 
 
 
-    ros::Publisher fixed_pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_xt0", 1);
-    ros::Publisher fixed_pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_xt1", 1);
-    ros::Publisher fixed_pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_xt2", 1);
-    ros::Publisher fixed_pc_pd0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_pandar0", 1);
-    ros::Publisher fixed_pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_fixed_pandar1", 1);
+    ros::Publisher tree_pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_tree_xt0", 1);
+    ros::Publisher tree_pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_tree_xt1", 1);
+    ros::Publisher tree_pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_tree_xt2", 1);
+    ros::Publisher tree_pc_pd0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_tree_pandar0", 1);
+    ros::Publisher tree_pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_tree_pandar1", 1);
 
-    ros::Publisher fixed_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_xt32_0", 1);
-    ros::Publisher fixed_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_xt32_1", 1);
-    ros::Publisher fixed_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_xt32_2", 1);
-    ros::Publisher fixed_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_pandar0", 1);
-    ros::Publisher fixed_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/fixed_pandar1", 1);
-
-
+    ros::Publisher tree_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/tree_xt32_0", 1);
+    ros::Publisher tree_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/tree_xt32_1", 1);
+    ros::Publisher tree_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/tree_xt32_2", 1);
+    ros::Publisher tree_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/tree_pandar0", 1);
+    ros::Publisher tree_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/tree_pandar1", 1);
 
     ros::Publisher pgo_pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pgo_xt0", 1);
     ros::Publisher pgo_pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pgo_xt1", 1);
@@ -358,7 +356,7 @@ int main(int argc, char **argv){
     // auto T_est = matchTwoPCs(pc1, pc2, option, T_init); 
 
     Transform T_xt0, T_xt1, T_xt2, T_pd0, T_pd1;
-    Transform T_fixed_xt0, T_fixed_xt1, T_fixed_xt2, T_fixed_pd0, T_fixed_pd1;
+    Transform T_tree_xt0, T_tree_xt1, T_tree_xt2, T_tree_pd0, T_tree_pd1;
     Transform T_xt0_to_pd1;
 
     //ROS_INFO_STREAM("T_est\n" << T_est);
@@ -380,26 +378,13 @@ int main(int argc, char **argv){
 
     
     //Optimization start
-    T_fixed_pd0 = T_pd0;
+    T_tree_pd0 = T_pd0;
+    T_tree_pd1 = iterative_ndt(T_pd0.inv()*T_pd1, pc_tree_pandar0, pc_tree_pandar1, 0.4, 0.2);
+    T_tree_xt0 = iterative_ndt(T_pd0.inv()*T_xt0, pc_tree_pandar0, pc_tree_xt0, 0.4, 0.2);
+    T_tree_xt1 = iterative_ndt(T_pd1.inv()*T_xt1, pc_tree_pandar1, pc_tree_xt1, 0.4, 0.2);
+    T_tree_xt2 = iterative_ndt(T_xt1.inv()*T_xt2, pc_tree_xt1, pc_tree_xt2, 0.4, 0.2);
 
-    //T_fixed_pd1 = T_pd0.inv()*T_pd1;  //experiment: parent is pd0, child is pd1 -> move pd1's point to pd0'2 point
-
-    /*
-    T_fixed_pd1 = T_fixed_pd0*iterative_ndt(T_pd0.inv()*T_pd1, pc_fixed_pandar0, pc_fixed_pandar1, 0.4, 0.2);
-    T_fixed_xt0 = T_fixed_pd0*iterative_ndt(T_pd0.inv()*T_xt0, pc_fixed_pandar0, pc_fixed_xt0, 0.4, 0.2);
-    T_fixed_xt1 = T_fixed_pd1*iterative_ndt(T_pd1.inv()*T_xt1, pc_fixed_pandar1, pc_fixed_xt1, 0.4, 0.2);
-    T_fixed_xt2 = T_fixed_xt1*iterative_ndt(T_xt1.inv()*T_xt2, pc_fixed_xt1, pc_fixed_xt2, 0.4, 0.2);
-    */
-    
-
-    //T_fixed_pd1 = T_xt0.inv()*T_pd1;
-
-    T_fixed_pd1 = iterative_ndt(T_pd0.inv()*T_pd1, pc_fixed_pandar0, pc_fixed_pandar1, 0.4, 0.2);
-    T_fixed_xt0 = iterative_ndt(T_pd0.inv()*T_xt0, pc_fixed_pandar0, pc_fixed_xt0, 0.4, 0.2);
-    T_fixed_xt1 = iterative_ndt(T_pd1.inv()*T_xt1, pc_fixed_pandar1, pc_fixed_xt1, 0.4, 0.2);
-    T_fixed_xt2 = iterative_ndt(T_xt1.inv()*T_xt2, pc_fixed_xt1, pc_fixed_xt2, 0.4, 0.2);
-
-    T_xt0_to_pd1 = iterative_ndt(T_xt0.inv()*T_pd1, pc_fixed_xt0, pc_fixed_pandar1, 0.4, 0.2);
+    T_xt0_to_pd1 = iterative_ndt(T_xt0.inv()*T_pd1, pc_tree_xt0, pc_tree_pandar1, 0.4, 0.2);
     
     
     //Optimization ends
@@ -408,7 +393,7 @@ int main(int argc, char **argv){
     //tf::Transform - type used for 
 
     std::vector<Transform> est_list;
-    std::vector<Transform> fixed_est_list;
+    std::vector<Transform> tree_est_list;
 
     est_list.push_back(T_xt0);
     est_list.push_back(T_xt1);
@@ -416,11 +401,11 @@ int main(int argc, char **argv){
     est_list.push_back(T_pd0);
     est_list.push_back(T_pd1);
 
-    fixed_est_list.push_back(T_fixed_xt0);
-    fixed_est_list.push_back(T_fixed_xt1);
-    fixed_est_list.push_back(T_fixed_xt2);
-    fixed_est_list.push_back(T_fixed_pd0);
-    fixed_est_list.push_back(T_fixed_pd1);
+    tree_est_list.push_back(T_tree_xt0);
+    tree_est_list.push_back(T_tree_xt1);
+    tree_est_list.push_back(T_tree_xt2);
+    tree_est_list.push_back(T_tree_pd0);
+    tree_est_list.push_back(T_tree_pd1);
 
     int N = 5;
 
@@ -430,10 +415,10 @@ int main(int argc, char **argv){
     tf::TransformBroadcaster broadcaster;
     tf::Quaternion quaternion;
     pg_editor::TransformationInfo transforminfos_xt0, transforminfos_xt1, transforminfos_xt2, transforminfos_pd0, transforminfos_pd1; 
-    pg_editor::TransformationInfo transforminfos_fixed_xt0, transforminfos_fixed_xt1, transforminfos_fixed_xt2, transforminfos_fixed_pd0, transforminfos_fixed_pd1; 
+    pg_editor::TransformationInfo transforminfos_tree_xt0, transforminfos_tree_xt1, transforminfos_tree_xt2, transforminfos_tree_pd0, transforminfos_tree_pd1; 
 
     std::vector<pg_editor::TransformationInfo*> tf_info_list;
-    std::vector<pg_editor::TransformationInfo*> fixed_tf_info_list;
+    std::vector<pg_editor::TransformationInfo*> tree_tf_info_list;
     
     tf_info_list.push_back(&transforminfos_xt0);
     tf_info_list.push_back(&transforminfos_xt1);
@@ -441,11 +426,11 @@ int main(int argc, char **argv){
     tf_info_list.push_back(&transforminfos_pd0);
     tf_info_list.push_back(&transforminfos_pd1);
 
-    fixed_tf_info_list.push_back(&transforminfos_fixed_xt0);
-    fixed_tf_info_list.push_back(&transforminfos_fixed_xt1);
-    fixed_tf_info_list.push_back(&transforminfos_fixed_xt2);
-    fixed_tf_info_list.push_back(&transforminfos_fixed_pd0);
-    fixed_tf_info_list.push_back(&transforminfos_fixed_pd1);
+    tree_tf_info_list.push_back(&transforminfos_tree_xt0);
+    tree_tf_info_list.push_back(&transforminfos_tree_xt1);
+    tree_tf_info_list.push_back(&transforminfos_tree_xt2);
+    tree_tf_info_list.push_back(&transforminfos_tree_pd0);
+    tree_tf_info_list.push_back(&transforminfos_tree_pd1);
 
     for(int i=0; i<5; i++){
         rotation = est_list.at(i).getRotation();
@@ -463,6 +448,8 @@ int main(int argc, char **argv){
         tf_info_list.at(i)->tx = cv_translation_vector[0];
         tf_info_list.at(i)->ty = cv_translation_vector[1];
         tf_info_list.at(i)->tz = cv_translation_vector[2];
+
+        tf_info_list.at(i)->info_name = "raw";
     }
 
     std::vector<std::string> sensor_to_sensor;
@@ -475,21 +462,23 @@ int main(int argc, char **argv){
 
 
     for(int i=0; i<5; i++){
-        rotation = fixed_est_list.at(i).getRotation();
+        rotation = tree_est_list.at(i).getRotation();
         cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
-        cv_translation_vector = fixed_est_list.at(i).getTranslation();
+        cv_translation_vector = tree_est_list.at(i).getTranslation();
         quaternion = mRot2Quat(cv_rotation_matrix);
 
-        fixed_tf_info_list.at(i)->frame_num = i;
+        tree_tf_info_list.at(i)->frame_num = i;
 
-        fixed_tf_info_list.at(i)->qx = quaternion.getX();
-        fixed_tf_info_list.at(i)->qy = quaternion.getY();
-        fixed_tf_info_list.at(i)->qz = quaternion.getZ();
-        fixed_tf_info_list.at(i)->qw = quaternion.getW();
+        tree_tf_info_list.at(i)->qx = quaternion.getX();
+        tree_tf_info_list.at(i)->qy = quaternion.getY();
+        tree_tf_info_list.at(i)->qz = quaternion.getZ();
+        tree_tf_info_list.at(i)->qw = quaternion.getW();
 
-        fixed_tf_info_list.at(i)->tx = cv_translation_vector[0];
-        fixed_tf_info_list.at(i)->ty = cv_translation_vector[1];
-        fixed_tf_info_list.at(i)->tz = cv_translation_vector[2];
+        tree_tf_info_list.at(i)->tx = cv_translation_vector[0];
+        tree_tf_info_list.at(i)->ty = cv_translation_vector[1];
+        tree_tf_info_list.at(i)->tz = cv_translation_vector[2];
+
+        tree_tf_info_list.at(i)->info_name = "tree";
 
         if(i!=3){
             ROS_INFO("%s: %f, %f, %f, %f, %f, %f, %f", sensor_to_sensor.at(i).c_str(), cv_translation_vector[0], cv_translation_vector[1], cv_translation_vector[2], quaternion.getX(), quaternion.getY(), quaternion.getZ(), quaternion.getW());  
@@ -526,23 +515,23 @@ int main(int argc, char **argv){
         pd1_pub.publish(transforminfos_pd1);
 
 
-        pc_fixed_pandar0.header.stamp = ros::Time::now();
-        pc_fixed_pandar1.header.stamp = ros::Time::now();
-        pc_fixed_xt0.header.stamp = ros::Time::now();
-        pc_fixed_xt1.header.stamp = ros::Time::now();
-        pc_fixed_xt2.header.stamp = ros::Time::now();
+        pc_tree_pandar0.header.stamp = ros::Time::now();
+        pc_tree_pandar1.header.stamp = ros::Time::now();
+        pc_tree_xt0.header.stamp = ros::Time::now();
+        pc_tree_xt1.header.stamp = ros::Time::now();
+        pc_tree_xt2.header.stamp = ros::Time::now();
 
-        fixed_pc_pd0_pub.publish(pc_fixed_pandar0);
-        fixed_pc_pd1_pub.publish(pc_fixed_pandar1);
-        fixed_pc_xt0_pub.publish(pc_fixed_xt0);
-        fixed_pc_xt1_pub.publish(pc_fixed_xt1);
-        fixed_pc_xt2_pub.publish(pc_fixed_xt2);
+        tree_pc_pd0_pub.publish(pc_tree_pandar0);
+        tree_pc_pd1_pub.publish(pc_tree_pandar1);
+        tree_pc_xt0_pub.publish(pc_tree_xt0);
+        tree_pc_xt1_pub.publish(pc_tree_xt1);
+        tree_pc_xt2_pub.publish(pc_tree_xt2);
         
-        fixed_xt32_0_pub.publish(transforminfos_fixed_xt0);
-        fixed_xt32_1_pub.publish(transforminfos_fixed_xt1);
-        fixed_xt32_2_pub.publish(transforminfos_fixed_xt2);
-        fixed_pd0_pub.publish(transforminfos_fixed_pd0);
-        fixed_pd1_pub.publish(transforminfos_fixed_pd1);
+        tree_xt32_0_pub.publish(transforminfos_tree_xt0);
+        tree_xt32_1_pub.publish(transforminfos_tree_xt1);
+        tree_xt32_2_pub.publish(transforminfos_tree_xt2);
+        tree_pd0_pub.publish(transforminfos_tree_pd0);
+        tree_pd1_pub.publish(transforminfos_tree_pd1);
 
 
         pc_pgo_pandar0.header.stamp = ros::Time::now();

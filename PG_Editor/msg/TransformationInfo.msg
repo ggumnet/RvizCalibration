@@ -6,3 +6,4 @@ float64 qw
 float64 tx
 float64 ty
 float64 tz
+string info_name

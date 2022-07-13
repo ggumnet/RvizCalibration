@@ -71,15 +71,7 @@ Marker makeBox(InteractiveMarker &msg)
     return marker;
 }
 
-InteractiveMarkerControl &makeBoxControl(InteractiveMarker &msg)
-{
-    InteractiveMarkerControl control;
-    control.always_visible = true;
-    control.markers.push_back(makeBox(msg));
-    msg.controls.push_back(control);
 
-    return msg.controls.back();
-}
 
 InteractiveMarker makeEmptyMarker(bool dummyBox = true)
 {
@@ -105,6 +97,7 @@ void makeMenuMarker(std::string name)
     int_marker.controls.push_back(control);
 
     server->insert(int_marker);
+    server->applyChanges();
 }
 
 void deepCb(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
@@ -150,6 +143,4 @@ int main(int argc, char **argv)
     server->applyChanges();
 
     ros::spin();
-
-    server.reset();
 }

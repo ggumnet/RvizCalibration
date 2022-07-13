@@ -21,7 +21,10 @@ InteractiveMarker makeEmptyMarker(geometry_msgs::Pose pose, std::string frame_id
 {
     InteractiveMarker int_marker;
     int_marker.header.frame_id = frame_id;
-    int_marker.pose.position = pose.position;
+    int_marker.header.stamp = ros::Time::now();
+    int_marker.pose.position.x = pose.position.x;
+    int_marker.pose.position.y = pose.position.y;
+    int_marker.pose.position.z = pose.position.z;
     int_marker.pose.orientation = pose.orientation;
     int_marker.scale = 1;
     return int_marker;
@@ -65,13 +68,13 @@ void makeMenuMarker(std::string name, geometry_msgs::Pose pose, std::string fram
 MenuHandler initMenu(geometry_msgs::Pose pose)
 {   
     MenuHandler menu_handler;
-    menu_handler.insert("tx"+std::to_string(pose.position.x));
-    menu_handler.insert("ty"+std::to_string(pose.position.y));
-    menu_handler.insert("tz"+std::to_string(pose.position.z));
-    menu_handler.insert("qx"+std::to_string(pose.orientation.x));
-    menu_handler.insert("qy"+std::to_string(pose.orientation.y));
-    menu_handler.insert("qz"+std::to_string(pose.orientation.z));
-    menu_handler.insert("qw"+std::to_string(pose.orientation.w));
+    menu_handler.insert("tx "+std::to_string(pose.position.x));
+    menu_handler.insert("ty "+std::to_string(pose.position.y));
+    menu_handler.insert("tz "+std::to_string(pose.position.z));
+    menu_handler.insert("qx "+std::to_string(pose.orientation.x));
+    menu_handler.insert("qy "+std::to_string(pose.orientation.y));
+    menu_handler.insert("qz "+std::to_string(pose.orientation.z));
+    menu_handler.insert("qw "+std::to_string(pose.orientation.w));
     return menu_handler;
 }
 
@@ -104,12 +107,13 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
         for(auto pose : pose_array.poses){
             MenuHandler menu_handler;
             i++;
-            makeMenuMarker(std::to_string(i), pose, frame_id);
+            makeMenuMarker("marker"+std::to_string(i), pose, frame_id);
+            ROS_INFO("done");
             menu_handler = initMenu(pose);
-            menu_handler.apply(*server, std::to_string(i));  
+            menu_handler.apply(*server, "marker"+std::to_string(i));  
         }
-        server->applyChanges();
     }
+    server->applyChanges();
 }
 
 bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, Transform &T, ParamMatrix &H)
@@ -161,7 +165,7 @@ int main(int argc, char **argv){
 
     Graph graph1, graph2;
 
-    server.reset(new InteractiveMarkerServer("server", "", false));
+    server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
         
     pointcloud_tools::SensorDataID id;
     id.bag_time = "2022-06-14-17-30-13";
@@ -440,6 +444,7 @@ int main(int argc, char **argv){
         pgo_tf_info_list.at(i)->tx = pose.position.x;
         pgo_tf_info_list.at(i)->ty = pose.position.y;
         pgo_tf_info_list.at(i)->tz = pose.position.z;
+        pgo_tf_info_list.at(i)->info_name = "pgo";
         
         ROS_INFO("%f, %f, %f, %f, %f, %f, %f", pgo_tf_info_list.at(i)->tx, pgo_tf_info_list.at(i)->ty, pgo_tf_info_list.at(i)->tz, pgo_tf_info_list.at(i)->qw, pgo_tf_info_list.at(i)->qx, pgo_tf_info_list.at(i)->qy, pgo_tf_info_list.at(i)->qz); 
     }
@@ -479,9 +484,14 @@ int main(int argc, char **argv){
         pgo_xt32_2_pub.publish(transforminfos_pgo_xt2);
         pgo_pd0_pub.publish(transforminfos_pgo_pd0);
         pgo_pd1_pub.publish(transforminfos_pgo_pd1);
+        ros::spinOnce();
         ros::Duration(0.1).sleep();
     }
-    ros::spin();
+    
+    // ros::spin();
+
+    // while(ros::ok())
+    //     ros::spinOnce();
 
     return 0;
 }
