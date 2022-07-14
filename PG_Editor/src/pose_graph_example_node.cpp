@@ -8,6 +8,9 @@
 #include <interactive_markers/menu_handler.h>
 
 #include <pg_editor/TransformationInfo.h>
+#include <pg_editor/RelativeFramesInfo.h>
+#include <pg_editor/RelativePose2FactorInfo.h>
+
 #include <gihyun_custom/rot2quat.h>
 
 using namespace visualization_msgs;
@@ -19,6 +22,27 @@ boost::shared_ptr<InteractiveMarkerServer> server;
 
 ros::Publisher first_pub;
 ros::Publisher second_pub;
+
+ros::Publisher relative_frame_pub;
+ros::Subscriber relative_pose_sub;
+
+//marker and edges publisher
+ros::Publisher edge_pub;
+ros::Publisher pose_pub;
+ros::Publisher pose_pc_pub;
+
+//Transformation information publisher
+ros::Publisher pgo_xt32_0_pub; 
+ros::Publisher pgo_xt32_1_pub; 
+ros::Publisher pgo_xt32_2_pub; 
+ros::Publisher pgo_pd0_pub;
+ros::Publisher pgo_pd1_pub;
+
+Graph graph;
+
+pg_editor::TransformationInfo transforminfos_pgo_xt0, transforminfos_pgo_xt1, transforminfos_pgo_xt2, transforminfos_pgo_pd0, transforminfos_pgo_pd1;
+
+std::map<std::string, pointcloud_tools::SensorDataID> id_to_sensorDataID_map;
 
 
 //make marker at the certain position
@@ -69,8 +93,6 @@ void makeMenuMarker(std::string name, geometry_msgs::Pose pose, std::string fram
     server->insert(int_marker);
     server->applyChanges();
 }
-
-
 
 geometry_msgs::Pose pose1, pose2;
 
@@ -199,332 +221,140 @@ bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, poi
     return true;
 }
 
-int main(int argc, char **argv){
-    ros::init(argc, argv, "pose_graph_example_node");
-    ros::NodeHandle nh("~");
+void requestRelativeFactor(std::string source_frame, std::string dest_frame){
+    pg_editor::RelativeFramesInfo relative_frames_info;
+    relative_frames_info.source_frame = source_frame;
+    relative_frames_info.dest_frame = dest_frame;
+    
+    relative_frame_pub.publish(relative_frames_info);
+}
 
-    first_pub = nh.advertise<visualization_msgs::Marker>("/first_marker", 1);
-    second_pub = nh.advertise<visualization_msgs::Marker>("/second_marker", 1);
+//get relative pose, add it to the graph, optimize it and print it
+void relative_pose_callback(const pg_editor::RelativePoseInfoConstPtr &msg)
+{
+    Transform T;
+    T(0,3) = msg->pose.position.x;
+    T(1,3) = msg->pose.position.y; 
+    T(2,3) = msg->pose.position.z;
+    tf::Quaternion q(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
+    
+    const auto &R = tf::Matrix3x3(q);
+    for (std::size_t i=0; i<DIM; ++i)
+    {
+      for (std::size_t j=0; j<DIM; ++j)
+        T(i, j) = R[i][j];
+    }
 
-    Graph graph1, graph2;
+    ParamMatrix H;
+    for(std::size_t i=0; i<PARAM_DIM; i++)
+        H(i,i) = 0.01;
 
-    server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
-        
+    addRelativeFactor(graph, id_to_sensorDataID_map[msg->source_frame], id_to_sensorDataID_map[msg->dest_frame], T, H);
+    //optimize
+    graph.optimize(false);        
+
+    //visualize
+    std::vector<Graph::DataID> var_indices;
+    graph.getVariableIndices(var_indices);
+    ROS_INFO("variable size: %d", var_indices.size());
+
+    auto var = graph.getVariable<Pose>(0);
+    ROS_INFO_STREAM("data:" << var->getData());
+    ROS_INFO_STREAM("factor size: " << var->getNumFactors());
+
+    auto factor = var->getFactor(0).lock();
+    ROS_INFO("factor type: %d",factor->type());
+
+}
+
+void publisher_init(){
+
+
+}
+
+pg_editor::TransformationInfo pose_to_transforminfo(geometry_msgs::Pose pose, int i){
+    pg_editor::TransformationInfo transformationInfo;
+    transformationInfo.frame_num = i;
+    transformationInfo.qx = pose.orientation.x;
+    transformationInfo.qy = pose.orientation.y;
+    transformationInfo.qz = pose.orientation.z;
+    transformationInfo.qw = pose.orientation.w;
+    transformationInfo.tx = pose.position.x;
+    transformationInfo.ty = pose.position.y;
+    transformationInfo.tz = pose.position.z;
+    transformationInfo.info_name = "pgo";
+}
+
+void publish_results(){
+    visualization_msgs::Marker marker;
+    geometry_msgs::PoseArray pose_array;
+    std::vector<std::size_t> indices;
+    graph.createMsgToVisualize(marker, pose_array, indices); 
+
+    transforminfos_pgo_pd0 = pose_to_transforminfo(pose_array.poses.at(0), 0);
+    transforminfos_pgo_pd1 = pose_to_transforminfo(pose_array.poses.at(1), 1);
+    transforminfos_pgo_xt0 = pose_to_transforminfo(pose_array.poses.at(2), 2);
+    transforminfos_pgo_xt1 = pose_to_transforminfo(pose_array.poses.at(3), 3);
+    transforminfos_pgo_xt2 = pose_to_transforminfo(pose_array.poses.at(4), 4);
+
+    pgo_xt32_0_pub.publish(transforminfos_pgo_xt0);
+    pgo_xt32_1_pub.publish(transforminfos_pgo_xt1);
+    pgo_xt32_2_pub.publish(transforminfos_pgo_xt2);
+    pgo_pd0_pub.publish(transforminfos_pgo_pd0);
+    pgo_pd1_pub.publish(transforminfos_pgo_pd1);
+}
+
+void init_sensorDataID(){
     pointcloud_tools::SensorDataID id;
     id.bag_time = "2022-06-14-17-30-13";
     id.sensor = "pandar64_0";
     id.time_step = 0;
     id.vehicle = "solati_v5_1";
 
-    Transform T(Transform::eye());
-    ParamMatrix H(ParamMatrix::eye());
-    for(std::size_t i=0; i<PARAM_DIM; i++)
-        H(i,i) = 0.00001;
+    id.sensor = "pandar64_0";
+    id_to_sensorDataID_map.insert(std::make_pair("pandar64_0",id));
+    id.sensor = "pandar64_1";
+    id_to_sensorDataID_map.insert(std::make_pair("pandar64_1",id));
 
-    if(!addAbsFactor(graph1, id, T, H))
-        return -1;
+    id.sensor = "xt32_0";
+    id_to_sensorDataID_map.insert(std::make_pair("xt32_0",id));
+    id.sensor = "xt32_1";
+    id_to_sensorDataID_map.insert(std::make_pair("xt32_1",id));
+    id.sensor = "xt32_2";
+    id_to_sensorDataID_map.insert(std::make_pair("xt32_2",id));
+}
 
-    if(!addAbsFactor(graph2, id, T, H))
-        return -1;
+int main(int argc, char **argv){
+    ros::init(argc, argv, "pose_graph_example_node");
+    ros::NodeHandle nh("~");
 
-    // Add relative factor between pandar64_0 and pandar64_1 (-0.037123, 1.853627, 0.030135, -0.006315, -0.009281, 0.999918, -0.006111)
-    pointcloud_tools::SensorDataID id_ref, id_in;
-    id_ref = id_in = id;
-    id_in.sensor = "pandar64_1";
+    init_sensorDataID();
 
-    T(0,3) = -0.037123;
-    T(1,3) = 1.853627; 
-    T(2,3) = 0.030135;
-    tf::Quaternion q1(-0.006315, -0.009281, 0.999918, -0.006111);
-    const auto &R1 = tf::Matrix3x3(q1);
-    for (std::size_t i=0; i<DIM; ++i)
-    {
-      for (std::size_t j=0; j<DIM; ++j)
-        T(i, j) = R1[i][j];
-    }
+    first_pub = nh.advertise<visualization_msgs::Marker>("/first_marker", 1);
+    second_pub = nh.advertise<visualization_msgs::Marker>("/second_marker", 1);
 
-    for(std::size_t i=0; i<PARAM_DIM; i++)
-        H(i,i) = 0.01;
-
-    if(!addRelativeFactor(graph1, id_ref,id_in, T, H))
-        return -1;
-
-    if(!addRelativeFactor(graph2, id_ref,id_in, T, H))
-        return -1;  
+    relative_frame_pub = nh.advertise<pg_editor::RelativeFramesInfo>("/relative_frame", 1);
+    relative_pose_sub = nh.subscribe<pg_editor::RelativePoseInfo>("/relative_pose", 1, relative_pose_callback);
 
 
-    // Add relative factor between pandar64_0 and xt32_0 (-0.812523, -0.072326, -1.244487, 0.015393, 0.003190, -0.003695, 0.999870)
-    id_ref = id;
-    id_in.sensor = "xt32_0";
+    edge_pub = nh.advertise<visualization_msgs::Marker>("graph_edge",1, true);
+    pose_pub = nh.advertise<geometry_msgs::PoseArray>("graph_pose",1, true);
+    pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc",1, true);
 
-    T(0,3) = -0.812523;
-    T(1,3) = -0.072326; 
-    T(2,3) = -1.244487;
-    tf::Quaternion q2(0.015393, 0.003190, -0.003695, 0.999870);
-    const auto &R2 = tf::Matrix3x3(q2);
-    for (std::size_t i=0; i<DIM; ++i)
-    {
-      for (std::size_t j=0; j<DIM; ++j)
-        T(i, j) = R2[i][j];
-    }
 
-    for(std::size_t i=0; i<PARAM_DIM; i++)
-        H(i,i) = 0.01;
+    pgo_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_0", 1);
+    pgo_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_1", 1);
+    pgo_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_2", 1);
+    pgo_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar0", 1);
+    pgo_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar1", 1);
 
-    if(!addRelativeFactor(graph1, id_ref,id_in, T, H))
-        return -1;
 
-    if(!addRelativeFactor(graph2, id_ref,id_in, T, H))
-        return -1;  
-
-    // Add relative factor between pandar64_1 and xt32_1 (0.824716, -0.038392, -1.199882, 0.002466, -0.000772, 0.035121, 0.999380)
-    id_ref.sensor = "pandar64_1";
-    id_in.sensor = "xt32_1";
-
-    T(0,3) = 0.824716;
-    T(1,3) = -0.038392; 
-    T(2,3) = -1.199882;
-    tf::Quaternion q3(0.002466, -0.000772, 0.035121, 0.999380);
-    const auto &R3 = tf::Matrix3x3(q3);
-    for (std::size_t i=0; i<DIM; ++i)
-    {
-      for (std::size_t j=0; j<DIM; ++j)
-        T(i, j) = R3[i][j];
-    }
-
-    for(std::size_t i=0; i<PARAM_DIM; i++)
-        H(i,i) = 0.01;
-
-    if(!addRelativeFactor(graph1, id_ref,id_in, T, H))
-        return -1;
-
-    if(!addRelativeFactor(graph2, id_ref,id_in, T, H))
-        return -1;  
-
-    // Add relative factor between xt32_1 and xt32_2 (-5.218188, 1.281358, -0.574805, -0.000000, 0.000846, 0.729292, -0.684202)
-    id_ref.sensor = "xt32_1";
-    id_in.sensor = "xt32_2";
-
-    T(0,3) = -5.218188;
-    T(1,3) = 1.281358; 
-    T(2,3) = -0.574805;
-    tf::Quaternion q4(-0.000000, 0.000846, 0.729292, -0.684202);
-    const auto &R4 = tf::Matrix3x3(q4);
-    for (std::size_t i=0; i<DIM; ++i)
-    {
-      for (std::size_t j=0; j<DIM; ++j)
-        T(i, j) = R4[i][j];
-    }
-
-    for(std::size_t i=0; i<PARAM_DIM; i++)
-        H(i,i) = 0.01;
-
-    if(!addRelativeFactor(graph1, id_ref,id_in, T, H))
-        return -1;
-
-    if(!addRelativeFactor(graph2, id_ref,id_in, T, H))
-        return -1;  
+    server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
 
     /* optimization start*/
-    
-    graph1.optimize(false);        
-    std::vector<Graph::DataID> var_indices1;
-    graph1.getVariableIndices(var_indices1);
-    ROS_INFO("variable size: %d", var_indices1.size());
-
-    auto var1 = graph1.getVariable<Pose>(0);
-    ROS_INFO_STREAM("data:" << var1->getData());
-    ROS_INFO_STREAM("factor size: " << var1->getNumFactors());
-
-    auto factor1 = var1->getFactor(0).lock();
-    ROS_INFO("factor type1: %d",factor1->type());
-
-    ros::Publisher edge_pub1 = nh.advertise<visualization_msgs::Marker>("graph_edge1",1, true);
-    ros::Publisher pose_pub1 = nh.advertise<geometry_msgs::PoseArray>("graph_pose1",1, true);
-    ros::Publisher pose_pc_pub1 = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc1",1, true);
-
-    visualizeGraph(graph1,edge_pub1, pose_pub1, pose_pc_pub1, "tree_antenna");
-
-    visualization_msgs::Marker marker;
-    geometry_msgs::PoseArray pose_array;
-    std::vector<std::size_t> indices;
-    graph1.createMsgToVisualize(marker, pose_array, indices);
-
-    ROS_INFO("optimization 1 result");
-
-
-    //T is from map frame to lidar frame
-    Transform T_xt0, T_xt1, T_xt2, T_pd0, T_pd1;
-    std::vector<Transform*> transform_list;
-    transform_list.push_back(&T_pd0);
-    transform_list.push_back(&T_pd1);
-    transform_list.push_back(&T_xt0);
-    transform_list.push_back(&T_xt1);
-    transform_list.push_back(&T_xt2);
-
-
-    for(int i=0; i<pose_array.poses.size(); i++){
-        auto pose = pose_array.poses.at(i);
-        transform_list.at(i)->setRotation(cv::Matx41d(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z));
-        transform_list.at(i)->setTranslation(cv::Matx31d(pose.position.x, pose.position.y, pose.position.z));      
-    }
-
-    Transform T_pd0_to_pd1_1, T_pd0_to_xt0_1, T_pd1_to_xt1_1, T_xt1_to_xt2_1;
-    Transform T_pd0_to_pd1_2, T_pd0_to_xt0_2, T_pd1_to_xt1_2, T_xt1_to_xt2_2;
-
-    T_pd0_to_pd1_1 = T_pd0.inv()*T_pd1;
-    T_pd0_to_xt0_1 = T_pd0.inv()*T_xt0;
-    T_pd1_to_xt1_1 = T_pd1.inv()*T_xt1;
-    T_xt1_to_xt2_1 = T_xt1.inv()*T_xt2;
-
-    std::vector<Transform> transfrom_result_list1, transfrom_result_list2;
-
-    transfrom_result_list1.push_back(T_pd0_to_pd1_1);
-    transfrom_result_list1.push_back(T_pd0_to_xt0_1);
-    transfrom_result_list1.push_back(T_pd1_to_xt1_1);
-    transfrom_result_list1.push_back(T_xt1_to_xt2_1);
-
-    std::vector<std::string> result_name_list;
-
-    result_name_list.push_back("T_pd0_to_pd1");
-    result_name_list.push_back("T_pd0_to_xt0");
-    result_name_list.push_back("T_pd1_to_xt1");
-    result_name_list.push_back("T_xt1_to_xt2");
-
-
-    rf_geometry::SO<double, 3UL> rotation;
-    cv::Matx<double, 3UL, 3UL> cv_rotation_matrix;
-    cv::Vec<double, 3UL> cv_translation_vector;
-    tf::Quaternion quaternion;
-
-    
-    //Add relative factor between pandar64_0 and pandar64_1 (-0.037123, 1.853627, 0.030135, -0.006315, -0.009281, 0.999918, -0.006111)
-
-    id_ref = id_in = id;
-    id_ref.sensor = "xt32_0";
-    id_in.sensor = "pandar64_1";
-
-    T(0,3) = 0.749554;
-    T(1,3) = 1.963856; 
-    T(2,3) = 1.273790;
-    tf::Quaternion q5(-0.006208, 0.000000, 0.999929, -0.010215);
-    const auto &R5 = tf::Matrix3x3(q5);
-    for (std::size_t i=0; i<DIM; ++i)
-    {
-      for (std::size_t j=0; j<DIM; ++j)
-        T(i, j) = R5[i][j];
-    }
-
-    for(std::size_t i=0; i<PARAM_DIM; i++)
-        H(i,i) = 0.01;
-
-    if(!addRelativeFactor(graph2, id_ref,id_in, T, H))
-        return -1;
-
-
-    /* optimization start*/
-
-
-    graph2.optimize(false);        
-    std::vector<Graph::DataID> var_indices;
-    graph2.getVariableIndices(var_indices);
-    ROS_INFO("variable size: %d", var_indices.size());
-
-    auto var2 = graph2.getVariable<Pose>(0);
-    ROS_INFO_STREAM("data:" << var2->getData());
-    ROS_INFO_STREAM("factor size: " << var2->getNumFactors());
-
-    auto factor2 = var2->getFactor(0).lock();
-    ROS_INFO("factor type2: %d",factor2->type());
-
-    ros::Publisher edge_pub2 = nh.advertise<visualization_msgs::Marker>("graph_edge2",1, true);
-    ros::Publisher pose_pub2 = nh.advertise<geometry_msgs::PoseArray>("graph_pose2",1, true);
-    ros::Publisher pose_pc_pub2 = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc2",1, true);
-
-    visualizeGraph(graph2, edge_pub2, pose_pub2, pose_pc_pub2, "pgo_antenna");
-
-
-    graph2.createMsgToVisualize(marker, pose_array, indices);
-
-    for(int i=0; i<pose_array.poses.size(); i++){
-        auto pose = pose_array.poses.at(i);
-        transform_list.at(i)->setRotation(cv::Matx41d(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z));
-        transform_list.at(i)->setTranslation(cv::Matx31d(pose.position.x, pose.position.y, pose.position.z));      
-    }
-
-    T_pd0_to_pd1_2 = T_pd0.inv()*T_pd1;
-    T_pd0_to_xt0_2 = T_pd0.inv()*T_xt0;
-    T_pd1_to_xt1_2 = T_pd1.inv()*T_xt1;
-    T_xt1_to_xt2_2 = T_xt1.inv()*T_xt2;
-
-
-    transfrom_result_list2.push_back(T_pd0_to_pd1_2);
-    transfrom_result_list2.push_back(T_pd0_to_xt0_2);
-    transfrom_result_list2.push_back(T_pd1_to_xt1_2);
-    transfrom_result_list2.push_back(T_xt1_to_xt2_2);
-
-    std::vector<pg_editor::TransformationInfo*> pgo_tf_info_list;
-    pg_editor::TransformationInfo transforminfos_pgo_xt0, transforminfos_pgo_xt1, transforminfos_pgo_xt2, transforminfos_pgo_pd0, transforminfos_pgo_pd1; 
-    
-    pgo_tf_info_list.push_back(&transforminfos_pgo_pd0);
-    pgo_tf_info_list.push_back(&transforminfos_pgo_pd1);
-    pgo_tf_info_list.push_back(&transforminfos_pgo_xt0);
-    pgo_tf_info_list.push_back(&transforminfos_pgo_xt1);
-    pgo_tf_info_list.push_back(&transforminfos_pgo_xt2);
-
-    ROS_INFO("optimization 2 result");
-
-    for(int i=0; i<pose_array.poses.size(); i++){
-        auto pose = pose_array.poses.at(i);
-        
-        pgo_tf_info_list.at(i)->frame_num = i;
-        pgo_tf_info_list.at(i)->qx = pose.orientation.x;
-        pgo_tf_info_list.at(i)->qy = pose.orientation.y;
-        pgo_tf_info_list.at(i)->qz = pose.orientation.z;
-        pgo_tf_info_list.at(i)->qw = pose.orientation.w;
-        pgo_tf_info_list.at(i)->tx = pose.position.x;
-        pgo_tf_info_list.at(i)->ty = pose.position.y;
-        pgo_tf_info_list.at(i)->tz = pose.position.z;
-        pgo_tf_info_list.at(i)->info_name = "pgo";
-        
-        ROS_INFO("%f, %f, %f, %f, %f, %f, %f", pgo_tf_info_list.at(i)->tx, pgo_tf_info_list.at(i)->ty, pgo_tf_info_list.at(i)->tz, pgo_tf_info_list.at(i)->qw, pgo_tf_info_list.at(i)->qx, pgo_tf_info_list.at(i)->qy, pgo_tf_info_list.at(i)->qz); 
-    }
-
-
-    //print relative transformation between Lidar frames
-    ROS_INFO("Result 1 (txyz - qxyzw)");
-
-    for(int i=0; i<transfrom_result_list1.size(); i++){    
-        rotation = transfrom_result_list1.at(i).getRotation();
-        cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
-        cv_translation_vector = transfrom_result_list1.at(i).getTranslation();
-        quaternion = mRot2Quat(cv_rotation_matrix);
-        ROS_INFO("%s : %f, %f, %f, %f, %f, %f, %f", result_name_list.at(i).c_str(), cv_translation_vector[0], cv_translation_vector[1], cv_translation_vector[2], quaternion.getX(), quaternion.getY(), quaternion.getZ(), quaternion.getW()); 
-    }
-
-    ROS_INFO("Result 2 (txyz - qxyzw)");
-
-    for(int i=0; i<transfrom_result_list2.size(); i++){    
-        rotation = transfrom_result_list2.at(i).getRotation();
-        cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
-        cv_translation_vector = transfrom_result_list2.at(i).getTranslation();
-        quaternion = mRot2Quat(cv_rotation_matrix);
-        ROS_INFO("%s : %f, %f, %f, %f, %f, %f, %f", result_name_list.at(i).c_str(), cv_translation_vector[0], cv_translation_vector[1], cv_translation_vector[2], quaternion.getX(), quaternion.getY(), quaternion.getZ(), quaternion.getW()); 
-    }
-
-
-    ros::Publisher pgo_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_0", 1);
-    ros::Publisher pgo_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_1", 1);
-    ros::Publisher pgo_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_2", 1);
-    ros::Publisher pgo_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar0", 1);
-    ros::Publisher pgo_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar1", 1);
 
     while(ros::ok()){
-        pgo_xt32_0_pub.publish(transforminfos_pgo_xt0);
-        pgo_xt32_1_pub.publish(transforminfos_pgo_xt1);
-        pgo_xt32_2_pub.publish(transforminfos_pgo_xt2);
-        pgo_pd0_pub.publish(transforminfos_pgo_pd0);
-        pgo_pd1_pub.publish(transforminfos_pgo_pd1);
+        publish_results();
         ros::spinOnce();
         ros::Duration(0.1).sleep();
     }

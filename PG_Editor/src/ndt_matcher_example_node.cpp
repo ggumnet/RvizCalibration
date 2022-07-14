@@ -13,6 +13,9 @@
 #include <pg_editor/TransformationInfo.h>
 #include <gihyun_custom/rot2quat.h>
 
+#include <pg_editor/RelativeFramesInfo.h>
+#include <pg_editor/RelativePose2FactorInfo.h>
+
 
 using pointcloud_tools::NDTOctreeGPU;
 using NDTMatcherGPU = pointcloud_tools::NDTMatcherGPU<NDTOctreeGPU>;
@@ -36,11 +39,15 @@ std::map<std::pair<std::string, std::string>, Transform> id_id_transform_table;
 std::map<std::string, sensor_msgs::PointCloud2> id_pointcloud_map;
 std::map<std::string, Transform> id_default_transform_map;
 std::vector<std::string> frame_name_list;
+std::map<std::string, rideflux_msgs::SensorDataID> id_DataID_map;
 
 rideflux_msgs::SensorDataID data_id1, data_id2, data_id3, data_id4, data_id5;
 std::vector<std::string> field_names{"x","y","z","intensity"};
 sensor_msgs::PointCloud2 pc_pandar0, pc_pandar1, pc_xt0, pc_xt1, pc_xt2;
 Transform T_ant_to_xt0, T_ant_to_xt1, T_ant_to_xt2, T_ant_to_pd0, T_ant_to_pd1;
+
+ros::Subscriber relative_frame_sub;
+ros::Publisher relative_pose_pub;
 
 
 struct MatchingOptions
@@ -278,7 +285,14 @@ void read_pointclouds(){
     data_id3.sensor = "xt32_0";
     data_id4.sensor = "xt32_1";
     data_id5.sensor = "xt32_2";
-    
+
+    id_DataID_map.insert(make_pair("pandar0", data_id1));
+    id_DataID_map.insert(make_pair("pandar1", data_id2));
+    id_DataID_map.insert(make_pair("xt0", data_id3));
+    id_DataID_map.insert(make_pair("xt1", data_id4));
+    id_DataID_map.insert(make_pair("xt2", data_id5));
+
+
     readPointcloud(data_id1, field_names, pc_pandar0);
     readPointcloud(data_id2, field_names, pc_pandar1);
     readPointcloud(data_id3, field_names, pc_xt0);
@@ -351,12 +365,51 @@ void make_ndt_table(){
     }
 }
 
+geometry_msgs::Pose transform_to_pose(Transform transform){
 
+    rf_geometry::SO<double, 3UL> rotation = transform.getRotation();
+    cv::Matx<double, 3UL, 3UL> cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;;
+    cv::Vec<double, 3UL> cv_translation_vector = transform.getTranslation();
+    tf::Quaternion quaternion = mRot2Quat(cv_rotation_matrix);
+    
+    geometry_msgs::Pose pose;
 
+    pose.position.x = cv_translation_vector[0]; 
+    pose.position.y = cv_translation_vector[1];
+    pose.position.z = cv_translation_vector[2];
+    pose.orientation.x = quaternion.getX();
+    pose.orientation.y = quaternion.getY();
+    pose.orientation.z = quaternion.getZ();
+    pose.orientation.w = quaternion.getW();
+
+    return pose;
+}
+
+void relative_frame_callback(pg_editor::RelativeFramesInfoConstPtr &msg){
+    pg_editor::RelativePoseInfo relative_pose;
+
+    relative_pose.source_frame = msg->source_frame;
+    relative_pose.dest_frame = msg->dest_frame;
+
+    //find matching result from table
+    relative_pose.pose = transform_to_pose(id_id_transform_table[std::make_pair(msg->source_frame, msg->dest_frame)]);
+
+    relative_pose_pub.publish(relative_pose);
+}
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "ndt_matcher_example_node");
     ros::NodeHandle nh("~");
+
+    relative_pose_pub = nh.advertise<pg_editor::RelativePoseInfo>("/relative_pose", 1);
+    relative_frame_sub = nh.subscribe<pg_editor::RelativeFramesInfo>("/relative_frame", 1, relative_frame_callback);
+
+    ros::Publisher pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt0", 1);
+    ros::Publisher pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt1", 1);
+    ros::Publisher pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt2", 1);
+    ros::Publisher pc_pd0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar0", 1);
+    ros::Publisher pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar1", 1);
+
 
     frame_name_list.push_back("xt0");
     frame_name_list.push_back("xt1");
@@ -384,6 +437,22 @@ int main(int argc, char **argv){
     make_ndt_table();
 
 
+    while(ros::ok()){
+        pc_pandar0.header.stamp = ros::Time::now();
+        pc_pandar1.header.stamp = ros::Time::now();
+        pc_xt0.header.stamp = ros::Time::now();
+        pc_xt1.header.stamp = ros::Time::now();
+        pc_xt2.header.stamp = ros::Time::now();
+
+        pc_pd0_pub.publish(pc_pandar0);
+        pc_pd1_pub.publish(pc_pandar1);
+        pc_xt0_pub.publish(pc_xt0);
+        pc_xt1_pub.publish(pc_xt1);
+        pc_xt2_pub.publish(pc_xt2);
+
+        ros::Duration(0.1).sleep();
+        ros::spinOnce();
+    }
 
     //Optimization start
     // T_tree_pd0 = T_ant_to_pd0;

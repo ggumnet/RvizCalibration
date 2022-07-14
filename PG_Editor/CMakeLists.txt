@@ -42,11 +42,15 @@ find_package(PythonLibs 2.7)
 add_message_files(
   FILES
   TransformationInfo.msg
+  RelativeFramesInfo.msg
+  RelativePoseInfo.msg
 )
 
 generate_messages(
   DEPENDENCIES
   std_msgs
+  rideflux_msgs
+  geometry_msgs
 )
 
 catkin_package(
