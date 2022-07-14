@@ -29,6 +29,12 @@ using IndexScalar = typename NDTOctreeGPU::IndexScalar;
 
 std::string root_dirname_ = "/home/rideflux/Data/output/pc";
 
+
+std::map<std::pair<std::string, std::string>, Transform> id_transform_map;
+std::map<std::string, sensor_msgs::PointCloud2> id_pointcloud_map;
+std::map<std::string, Transform> id_default_transform_map;
+
+
 struct MatchingOptions
 {
   Vector cell_size;
@@ -254,31 +260,25 @@ Transform iterative_ndt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, senso
 }
 
 
-int main(int argc, char **argv){
-    ros::init(argc, argv, "ndt_matcher_example_node");
-    ros::NodeHandle nh("~");
+rideflux_msgs::SensorDataID data_id1, data_id2, data_id3, data_id4, data_id5;
 
+std::vector<std::string> field_names{"x","y","z","intensity"};
 
-    
-    rideflux_msgs::SensorDataID data_id1, data_id2, data_id3, data_id4, data_id5;
+sensor_msgs::PointCloud2 pc_pandar0, pc_pandar1, pc_xt0, pc_xt1, pc_xt2;
+sensor_msgs::PointCloud2 pc_tree_pandar0, pc_tree_pandar1, pc_tree_xt0, pc_tree_xt1, pc_tree_xt2;
+sensor_msgs::PointCloud2 pc_pgo_pandar0, pc_pgo_pandar1, pc_pgo_xt0, pc_pgo_xt1, pc_pgo_xt2;
+
+void read_pointclouds(){
+
     data_id1.vehicle = data_id2.vehicle = data_id3.vehicle = data_id4.vehicle = data_id5.vehicle = "v5_1_sample_data_2";
     data_id1.bag_time = data_id2.bag_time = data_id3.bag_time = data_id4.bag_time = data_id5.bag_time = "2022-07-05-18-01-07";
     data_id1.time_step = data_id2.time_step = data_id3.time_step = data_id4.time_step = data_id5.time_step = 0;
-    
+
     data_id1.sensor = "pandar64_0";
     data_id2.sensor = "pandar64_1";
     data_id3.sensor = "xt32_0";
     data_id4.sensor = "xt32_1";
     data_id5.sensor = "xt32_2";
-    
-
-
-    std::vector<std::string> field_names{"x","y","z","intensity"};
-
-    sensor_msgs::PointCloud2 pc_pandar0, pc_pandar1, pc_xt0, pc_xt1, pc_xt2;
-    sensor_msgs::PointCloud2 pc_tree_pandar0, pc_tree_pandar1, pc_tree_xt0, pc_tree_xt1, pc_tree_xt2;
-    sensor_msgs::PointCloud2 pc_pgo_pandar0, pc_pgo_pandar1, pc_pgo_xt0, pc_pgo_xt1, pc_pgo_xt2;
-    
     
     readPointcloud(data_id1, field_names, pc_pandar0);
     readPointcloud(data_id2, field_names, pc_pandar1);
@@ -317,6 +317,16 @@ int main(int argc, char **argv){
     pc_pgo_pandar0.header.frame_id = "pgo_pandar0";
     pc_pgo_pandar1.header.frame_id = "pgo_pandar1";
 
+
+}
+
+
+int main(int argc, char **argv){
+    ros::init(argc, argv, "ndt_matcher_example_node");
+    ros::NodeHandle nh("~");
+
+    read_pointclouds();
+
     ros::Publisher pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt0", 1);
     ros::Publisher pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt1", 1);
     ros::Publisher pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt2", 1);
@@ -328,8 +338,6 @@ int main(int argc, char **argv){
     ros::Publisher xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/xt32_2", 1);
     ros::Publisher pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pandar0", 1);
     ros::Publisher pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pandar1", 1);
-
-
 
     ros::Publisher tree_pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_tree_xt0", 1);
     ros::Publisher tree_pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_tree_xt1", 1);
@@ -350,7 +358,6 @@ int main(int argc, char **argv){
     ros::Publisher pgo_pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pgo_pandar1", 1);
 
 
-    
     MatchingOptions option;
     // Transform T_init = Transform::eye();
     // auto T_est = matchTwoPCs(pc1, pc2, option, T_init); 
@@ -360,6 +367,14 @@ int main(int argc, char **argv){
     Transform T_xt0_to_pd1;
 
     //ROS_INFO_STREAM("T_est\n" << T_est);
+
+    std::map<std::pair<std::string, std::string>, Transform> id_transform_map;
+    std::map<std::string, sensor_msgs::PointCloud2> id_pointcloud_map;
+    std::map<std::string, Transform> id_default_transform_map;
+
+    //init_id_pointcloud_map;
+    
+
 
     T_xt0.setRotation(cv::Matx<double, 3UL, 3UL>(-1,0,0,0,-1,0,0,0,1));
     T_xt0.setTranslation(cv::Matx31d(4.517, 1.022, -1.589));
@@ -375,6 +390,12 @@ int main(int argc, char **argv){
     
     T_pd1.setRotation(cv::Matx<double, 3UL, 3UL>(1,0,0,0,1,0,0,0,1));
     T_pd1.setTranslation(cv::Matx31d(3.672, -0.925, -0.369));
+
+    id_default_transform_map.insert(std::make_pair("xt0", T_xt0));
+    id_default_transform_map.insert(std::make_pair("xt1", T_xt1));
+    id_default_transform_map.insert(std::make_pair("xt2", T_xt2));
+    id_default_transform_map.insert(std::make_pair("pd0", T_pd0));
+    id_default_transform_map.insert(std::make_pair("pd1", T_pd1));
 
     
     //Optimization start
@@ -407,7 +428,7 @@ int main(int argc, char **argv){
     tree_est_list.push_back(T_tree_pd0);
     tree_est_list.push_back(T_tree_pd1);
 
-    int N = 5;
+    int N=5;
 
     rf_geometry::SO<double, 3UL> rotation;
     cv::Matx<double, 3UL, 3UL> cv_rotation_matrix;
@@ -513,7 +534,6 @@ int main(int argc, char **argv){
         xt32_2_pub.publish(transforminfos_xt2);
         pd0_pub.publish(transforminfos_pd0);
         pd1_pub.publish(transforminfos_pd1);
-
 
         pc_tree_pandar0.header.stamp = ros::Time::now();
         pc_tree_pandar1.header.stamp = ros::Time::now();

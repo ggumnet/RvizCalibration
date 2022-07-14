@@ -16,6 +16,11 @@ using namespace interactive_markers;
 using namespace pg_lib;
 boost::shared_ptr<InteractiveMarkerServer> server;
 
+
+ros::Publisher first_pub;
+ros::Publisher second_pub;
+
+
 //make marker at the certain position
 InteractiveMarker makeEmptyMarker(geometry_msgs::Pose pose, std::string frame_id)
 {
@@ -65,19 +70,54 @@ void makeMenuMarker(std::string name, geometry_msgs::Pose pose, std::string fram
     server->applyChanges();
 }
 
+
+
+geometry_msgs::Pose pose1, pose2;
+
+void set_first(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
+    // visualization_msgs::Marker marker;
+    // marker.header.frame_id = feedback.get()->header.frame_id;
+    // marker.header.stamp = ros::Time();
+    // marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    // marker.action = visualization_msgs::Marker::ADD;
+    // marker.pose = feedback.get()->pose;
+    // marker.scale.z = 1;
+    // marker.text = "first";
+    pose1 = feedback.get()->pose;
+}
+
+void set_second(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
+    Transform T1, T2;
+    Transform T_1_to_2;
+    geometry_msgs::Pose relative_pose;
+    pose2 = feedback.get()->pose;
+    // if(pose1!=NULL){
+    //     T1.setRotation(tf::Matrix3x3(tf::Quaternion(pose1.orientation.x, pose1.orientation.y, pose1.orientation.z, pose1.orientation.w)));
+    //     T1.setTranslation(cv::Matx31d(pose1.position.x, pose1.position.y, pose1.position.z));
+    //     T2.setRotation(tf::Quaternion(pose2.orientation.x, pose2.orientation.y, pose2.orientation.z, pose2.orientation.w));
+    //     T2.setTranslation(cv::Matx31d(pose2.position.x, pose2.position.y, pose2.position.z));
+    //     T_1_to_2 = T1.inv()*T2;
+    //     visualization_msgs::Marker menu_marker;
+        
+    // }    
+}
+
 MenuHandler initMenu(geometry_msgs::Pose pose)
 {   
     MenuHandler menu_handler;
-    menu_handler.insert("tx "+std::to_string(pose.position.x));
-    menu_handler.insert("ty "+std::to_string(pose.position.y));
-    menu_handler.insert("tz "+std::to_string(pose.position.z));
-    menu_handler.insert("qx "+std::to_string(pose.orientation.x));
-    menu_handler.insert("qy "+std::to_string(pose.orientation.y));
-    menu_handler.insert("qz "+std::to_string(pose.orientation.z));
-    menu_handler.insert("qw "+std::to_string(pose.orientation.w));
+    MenuHandler::EntryHandle pose_menu, set_menu;
+    pose_menu = menu_handler.insert("pose");
+    menu_handler.insert(pose_menu, "tx "+std::to_string(pose.position.x));
+    menu_handler.insert(pose_menu, "ty "+std::to_string(pose.position.y));
+    menu_handler.insert(pose_menu, "tz "+std::to_string(pose.position.z));
+    menu_handler.insert(pose_menu, "qx "+std::to_string(pose.orientation.x));
+    menu_handler.insert(pose_menu, "qy "+std::to_string(pose.orientation.y));
+    menu_handler.insert(pose_menu, "qz "+std::to_string(pose.orientation.z));
+    menu_handler.insert(pose_menu, "qw "+std::to_string(pose.orientation.w));
+    menu_handler.insert("first set", &set_first);
+    menu_handler.insert("second set", &set_second); 
     return menu_handler;
 }
-
 
 void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher &poses_pub, ros::Publisher &pose_pc_pub, std::string frame_id)
 {
@@ -107,10 +147,10 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
         for(auto pose : pose_array.poses){
             MenuHandler menu_handler;
             i++;
-            makeMenuMarker("marker"+std::to_string(i), pose, frame_id);
+            makeMenuMarker("marker"+std::to_string(i), pose, frame_id); //make menu marker and add to server
             ROS_INFO("done");
             menu_handler = initMenu(pose);
-            menu_handler.apply(*server, "marker"+std::to_string(i));  
+            menu_handler.apply(*server, "marker"+std::to_string(i)); //apply menu entry to menu marker
         }
     }
     server->applyChanges();
@@ -162,6 +202,9 @@ bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, poi
 int main(int argc, char **argv){
     ros::init(argc, argv, "pose_graph_example_node");
     ros::NodeHandle nh("~");
+
+    first_pub = nh.advertise<visualization_msgs::Marker>("/first_marker", 1);
+    second_pub = nh.advertise<visualization_msgs::Marker>("/second_marker", 1);
 
     Graph graph1, graph2;
 
@@ -300,7 +343,7 @@ int main(int argc, char **argv){
     ros::Publisher pose_pub1 = nh.advertise<geometry_msgs::PoseArray>("graph_pose1",1, true);
     ros::Publisher pose_pc_pub1 = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc1",1, true);
 
-    visualizeGraph(graph1,edge_pub1, pose_pub1, pose_pc_pub1, "fixed_antenna");
+    visualizeGraph(graph1,edge_pub1, pose_pub1, pose_pc_pub1, "tree_antenna");
 
     visualization_msgs::Marker marker;
     geometry_msgs::PoseArray pose_array;
@@ -419,8 +462,6 @@ int main(int argc, char **argv){
     transfrom_result_list2.push_back(T_pd0_to_xt0_2);
     transfrom_result_list2.push_back(T_pd1_to_xt1_2);
     transfrom_result_list2.push_back(T_xt1_to_xt2_2);
-
-    
 
     std::vector<pg_editor::TransformationInfo*> pgo_tf_info_list;
     pg_editor::TransformationInfo transforminfos_pgo_xt0, transforminfos_pgo_xt1, transforminfos_pgo_xt2, transforminfos_pgo_pd0, transforminfos_pgo_pd1; 
