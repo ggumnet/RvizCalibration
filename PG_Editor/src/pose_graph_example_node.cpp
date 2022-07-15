@@ -341,6 +341,8 @@ void publishResults(Graph &graph){
     pgo_pd0_pub.publish(transforminfos_pgo_pd0);
     pgo_pd1_pub.publish(transforminfos_pgo_pd1);
 
+    visualizeGraph(graph, edge_pub, pose_pub, pose_pc_pub, "pgo_antenna");
+
     ROS_INFO("done request");
 }
 

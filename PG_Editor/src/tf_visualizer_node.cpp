@@ -37,8 +37,8 @@ int main(int argc, char **argv)
     {
         try
         {
-            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[0], ros::Time::now(), "pgo_antenna", "pgo_pandar0"));
-            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[1], ros::Time::now(), "pgo_antenna", "pgo_pandar1"));  
+            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[0], ros::Time::now(), "pgo_antenna", "pgo_pandar64_0"));
+            broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[1], ros::Time::now(), "pgo_antenna", "pgo_pandar64_1"));  
             broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[2], ros::Time::now(), "pgo_antenna", "pgo_xt32_0"));
             broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[3], ros::Time::now(), "pgo_antenna", "pgo_xt32_1"));
             broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[4], ros::Time::now(), "pgo_antenna", "pgo_xt32_2"));

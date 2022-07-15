@@ -300,11 +300,11 @@ void readPointclouds(){
     readPointcloud(data_id5, field_names, pc_xt2);
     
 
-    pc_xt0.header.frame_id = "xt32_0";
-    pc_xt1.header.frame_id = "xt32_1";
-    pc_xt2.header.frame_id = "xt32_2";
-    pc_pandar0.header.frame_id = "pandar64_0";
-    pc_pandar1.header.frame_id = "pandar64_1";
+    pc_xt0.header.frame_id = "pgo_xt32_0";
+    pc_xt1.header.frame_id = "pgo_xt32_1";
+    pc_xt2.header.frame_id = "pgo_xt32_2";
+    pc_pandar0.header.frame_id = "pgo_pandar64_0";
+    pc_pandar1.header.frame_id = "pgo_pandar64_1";
 
 }
 
