@@ -14,7 +14,7 @@
 #include <gihyun_custom/rot2quat.h>
 
 #include <pg_editor/RelativeFramesInfo.h>
-#include <pg_editor/RelativePose2FactorInfo.h>
+#include <pg_editor/RelativePoseInfo.h>
 
 
 using pointcloud_tools::NDTOctreeGPU;
@@ -265,7 +265,7 @@ Transform matchTwoPCs(sensor_msgs::PointCloud2 &pc1, sensor_msgs::PointCloud2 &p
 }
 
 
-Transform iterative_ndt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, sensor_msgs::PointCloud2 pc_est, float cell_size1, float cell_size2){
+Transform iterativeNdt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, sensor_msgs::PointCloud2 pc_est, float cell_size1, float cell_size2){
     MatchingOptions option;
     option = MatchingOptions(cell_size1);
     auto T_est = matchTwoPCs(pc_ref, pc_est, option, T_init); 
@@ -274,7 +274,7 @@ Transform iterative_ndt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, senso
     return T_est;
 }
 
-void read_pointclouds(){
+void readPointclouds(){
 
     data_id1.vehicle = data_id2.vehicle = data_id3.vehicle = data_id4.vehicle = data_id5.vehicle = "v5_1_sample_data_2";
     data_id1.bag_time = data_id2.bag_time = data_id3.bag_time = data_id4.bag_time = data_id5.bag_time = "2022-07-05-18-01-07";
@@ -286,11 +286,11 @@ void read_pointclouds(){
     data_id4.sensor = "xt32_1";
     data_id5.sensor = "xt32_2";
 
-    id_DataID_map.insert(make_pair("pandar0", data_id1));
-    id_DataID_map.insert(make_pair("pandar1", data_id2));
-    id_DataID_map.insert(make_pair("xt0", data_id3));
-    id_DataID_map.insert(make_pair("xt1", data_id4));
-    id_DataID_map.insert(make_pair("xt2", data_id5));
+    id_DataID_map.insert(make_pair("pandar64_0", data_id1));
+    id_DataID_map.insert(make_pair("pandar64_1", data_id2));
+    id_DataID_map.insert(make_pair("xt32_0", data_id3));
+    id_DataID_map.insert(make_pair("xt32_1", data_id4));
+    id_DataID_map.insert(make_pair("xt32_2", data_id5));
 
 
     readPointcloud(data_id1, field_names, pc_pandar0);
@@ -303,12 +303,12 @@ void read_pointclouds(){
     pc_xt0.header.frame_id = "xt32_0";
     pc_xt1.header.frame_id = "xt32_1";
     pc_xt2.header.frame_id = "xt32_2";
-    pc_pandar0.header.frame_id = "pandar0";
-    pc_pandar1.header.frame_id = "pandar1";
+    pc_pandar0.header.frame_id = "pandar64_0";
+    pc_pandar1.header.frame_id = "pandar64_1";
 
 }
 
-void print_Transform(Transform transform){
+void printTransform(Transform transform){
     rf_geometry::SO<double, 3UL> rotation = transform.getRotation();
     cv::Matx<double, 3UL, 3UL> cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
     cv::Vec<double, 3UL> cv_translation_vector = transform.getTranslation();
@@ -317,12 +317,12 @@ void print_Transform(Transform transform){
 }
 
 
-void init_id_pointcloud_map(){
-    id_pointcloud_map.insert(std::make_pair("xt0", pc_xt0));
-    id_pointcloud_map.insert(std::make_pair("xt1", pc_xt1));
-    id_pointcloud_map.insert(std::make_pair("xt2", pc_xt2));
-    id_pointcloud_map.insert(std::make_pair("pandar0", pc_pandar0));
-    id_pointcloud_map.insert(std::make_pair("pandar1", pc_pandar1));
+void initIdPointcloudMap(){
+    id_pointcloud_map.insert(std::make_pair("xt32_0", pc_xt0));
+    id_pointcloud_map.insert(std::make_pair("xt32_1", pc_xt1));
+    id_pointcloud_map.insert(std::make_pair("xt32_2", pc_xt2));
+    id_pointcloud_map.insert(std::make_pair("pandar64_0", pc_pandar0));
+    id_pointcloud_map.insert(std::make_pair("pandar64_1", pc_pandar1));
 }
 
 void set_T_ant_to_frames(){
@@ -342,7 +342,7 @@ void set_T_ant_to_frames(){
     T_ant_to_pd1.setTranslation(cv::Matx31d(3.672, -0.925, -0.369));
 }
 
-void make_ndt_table(){
+void makeNdtTable(){
     int i, j;
     sensor_msgs::PointCloud2 pc_source, pc_dest;
     Transform T_source, T_dest, T_result;
@@ -358,14 +358,14 @@ void make_ndt_table(){
             T_source = id_default_transform_map[source_name];
             T_dest = id_default_transform_map[dest_name];
 
-            T_result = iterative_ndt(T_source.inv()*T_dest, pc_source, pc_dest, 0.4, 0.2);
+            T_result = iterativeNdt(T_source.inv()*T_dest, pc_source, pc_dest, 0.4, 0.2);
             
             id_id_transform_table.insert(make_pair(make_pair(source_name, dest_name), T_result));
         }
     }
 }
 
-geometry_msgs::Pose transform_to_pose(Transform transform){
+geometry_msgs::Pose transformToPose(Transform transform){
 
     rf_geometry::SO<double, 3UL> rotation = transform.getRotation();
     cv::Matx<double, 3UL, 3UL> cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;;
@@ -385,24 +385,36 @@ geometry_msgs::Pose transform_to_pose(Transform transform){
     return pose;
 }
 
-void relative_frame_callback(pg_editor::RelativeFramesInfoConstPtr &msg){
+void relativeFrameCallback(const pg_editor::RelativeFramesInfoConstPtr &msg){
+
+    ROS_INFO("called");
+
+    Transform T;
+
     pg_editor::RelativePoseInfo relative_pose;
 
     relative_pose.source_frame = msg->source_frame;
     relative_pose.dest_frame = msg->dest_frame;
 
     //find matching result from table
-    relative_pose.pose = transform_to_pose(id_id_transform_table[std::make_pair(msg->source_frame, msg->dest_frame)]);
+
+    T = id_id_transform_table[std::make_pair(msg->source_frame, msg->dest_frame)];
+
+    ROS_INFO("%s %s", msg->source_frame.c_str(), msg->dest_frame.c_str());
+    printTransform(T);
+
+    relative_pose.pose = transformToPose(T);
 
     relative_pose_pub.publish(relative_pose);
+    ros::Duration(0.1).sleep();
 }
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "ndt_matcher_example_node");
     ros::NodeHandle nh("~");
 
-    relative_pose_pub = nh.advertise<pg_editor::RelativePoseInfo>("/relative_pose", 1);
-    relative_frame_sub = nh.subscribe<pg_editor::RelativeFramesInfo>("/relative_frame", 1, relative_frame_callback);
+    relative_pose_pub = nh.advertise<pg_editor::RelativePoseInfo>("/relative_pose", 10);
+    relative_frame_sub = nh.subscribe<pg_editor::RelativeFramesInfo>("/relative_frame", 10, relativeFrameCallback);
 
     ros::Publisher pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt0", 1);
     ros::Publisher pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt1", 1);
@@ -411,30 +423,30 @@ int main(int argc, char **argv){
     ros::Publisher pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar1", 1);
 
 
-    frame_name_list.push_back("xt0");
-    frame_name_list.push_back("xt1");
-    frame_name_list.push_back("xt2");
-    frame_name_list.push_back("pandar0");
-    frame_name_list.push_back("pandar1");
+    frame_name_list.push_back("xt32_0");
+    frame_name_list.push_back("xt32_1");
+    frame_name_list.push_back("xt32_2");
+    frame_name_list.push_back("pandar64_0");
+    frame_name_list.push_back("pandar64_1");
 
-    read_pointclouds();
+    readPointclouds();
 
     Transform T_tree_xt0, T_tree_xt1, T_tree_xt2, T_tree_pd0, T_tree_pd1;
     Transform T_xt0_to_pd1;
 
-    init_id_pointcloud_map();
+    initIdPointcloudMap();
 
     set_T_ant_to_frames();
 
-    print_Transform(T_ant_to_pd0);
+    printTransform(T_ant_to_pd0);
 
-    id_default_transform_map.insert(std::make_pair("xt0", T_ant_to_xt0));
-    id_default_transform_map.insert(std::make_pair("xt1", T_ant_to_xt1));
-    id_default_transform_map.insert(std::make_pair("xt2", T_ant_to_xt2));
-    id_default_transform_map.insert(std::make_pair("pandar0", T_ant_to_pd0));
-    id_default_transform_map.insert(std::make_pair("pandar1", T_ant_to_pd1));
+    id_default_transform_map.insert(std::make_pair("xt32_0", T_ant_to_xt0));
+    id_default_transform_map.insert(std::make_pair("xt32_1", T_ant_to_xt1));
+    id_default_transform_map.insert(std::make_pair("xt32_2", T_ant_to_xt2));
+    id_default_transform_map.insert(std::make_pair("pandar64_0", T_ant_to_pd0));
+    id_default_transform_map.insert(std::make_pair("pandar64_1", T_ant_to_pd1));
 
-    make_ndt_table();
+    makeNdtTable();
 
 
     while(ros::ok()){

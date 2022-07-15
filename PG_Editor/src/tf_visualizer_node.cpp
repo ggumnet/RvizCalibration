@@ -11,6 +11,7 @@ tf::Transform pgo_trforms[N];
 
 void pgo_tf_handler_callback(const pg_editor::TransformationInfoConstPtr &msg)
 {
+    ROS_INFO("called");
     tf::Transform* trform;
     trform = &pgo_trforms[msg->frame_num];
 

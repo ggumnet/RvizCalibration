@@ -9,7 +9,7 @@
 
 #include <pg_editor/TransformationInfo.h>
 #include <pg_editor/RelativeFramesInfo.h>
-#include <pg_editor/RelativePose2FactorInfo.h>
+#include <pg_editor/RelativePoseInfo.h>
 
 #include <gihyun_custom/rot2quat.h>
 
@@ -38,12 +38,23 @@ ros::Publisher pgo_xt32_2_pub;
 ros::Publisher pgo_pd0_pub;
 ros::Publisher pgo_pd1_pub;
 
-Graph graph;
-
 pg_editor::TransformationInfo transforminfos_pgo_xt0, transforminfos_pgo_xt1, transforminfos_pgo_xt2, transforminfos_pgo_pd0, transforminfos_pgo_pd1;
 
 std::map<std::string, pointcloud_tools::SensorDataID> id_to_sensorDataID_map;
 
+//std::shared_ptr<Graph> graph_ptr;
+Graph* graph_ptr;
+
+bool do_optimize = false;
+
+
+void printTransform(Transform transform){
+    rf_geometry::SO<double, 3UL> rotation = transform.getRotation();
+    cv::Matx<double, 3UL, 3UL> cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
+    cv::Vec<double, 3UL> cv_translation_vector = transform.getTranslation();
+    tf::Quaternion quaternion = mRot2Quat(cv_rotation_matrix);
+    ROS_INFO("%f, %f, %f, %f, %f, %f, %f", cv_translation_vector[0], cv_translation_vector[1], cv_translation_vector[2], quaternion.getX(), quaternion.getY(), quaternion.getZ(), quaternion.getW());  
+}
 
 //make marker at the certain position
 InteractiveMarker makeEmptyMarker(geometry_msgs::Pose pose, std::string frame_id)
@@ -96,7 +107,7 @@ void makeMenuMarker(std::string name, geometry_msgs::Pose pose, std::string fram
 
 geometry_msgs::Pose pose1, pose2;
 
-void set_first(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
+void setFirst(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
     // visualization_msgs::Marker marker;
     // marker.header.frame_id = feedback.get()->header.frame_id;
     // marker.header.stamp = ros::Time();
@@ -108,7 +119,7 @@ void set_first(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feed
     pose1 = feedback.get()->pose;
 }
 
-void set_second(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
+void setSecond(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
     Transform T1, T2;
     Transform T_1_to_2;
     geometry_msgs::Pose relative_pose;
@@ -124,6 +135,25 @@ void set_second(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &fee
     // }    
 }
 
+void optimizeGraph(Graph& graph){
+
+    //optimize
+    (*graph_ptr).optimize(false);        
+
+    //show optimization results
+    /*
+    std::vector<Graph::DataID> var_indices;
+    (*graph_ptr).getVariableIndices(var_indices);
+    ROS_INFO("variable size: %d", var_indices.size());
+
+    auto var = (*graph_ptr).getVariable<Pose>(0);
+    ROS_INFO_STREAM("data:" << var->getData());
+    ROS_INFO_STREAM("factor size: " << var->getNumFactors());
+
+    auto factor = var->getFactor(0).lock();
+    ROS_INFO("factor type: %d",factor->type());*/
+}
+
 MenuHandler initMenu(geometry_msgs::Pose pose)
 {   
     MenuHandler menu_handler;
@@ -136,8 +166,8 @@ MenuHandler initMenu(geometry_msgs::Pose pose)
     menu_handler.insert(pose_menu, "qy "+std::to_string(pose.orientation.y));
     menu_handler.insert(pose_menu, "qz "+std::to_string(pose.orientation.z));
     menu_handler.insert(pose_menu, "qw "+std::to_string(pose.orientation.w));
-    menu_handler.insert("first set", &set_first);
-    menu_handler.insert("second set", &set_second); 
+    menu_handler.insert("first set", &setFirst);
+    menu_handler.insert("second set", &setSecond); 
     return menu_handler;
 }
 
@@ -170,7 +200,7 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
             MenuHandler menu_handler;
             i++;
             makeMenuMarker("marker"+std::to_string(i), pose, frame_id); //make menu marker and add to server
-            ROS_INFO("done");
+            //ROS_INFO("done");
             menu_handler = initMenu(pose);
             menu_handler.apply(*server, "marker"+std::to_string(i)); //apply menu entry to menu marker
         }
@@ -221,16 +251,23 @@ bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, poi
     return true;
 }
 
+
+bool removeRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, pointcloud_tools::SensorDataID &id_in){
+
+
+}
+
+//OK
 void requestRelativeFactor(std::string source_frame, std::string dest_frame){
     pg_editor::RelativeFramesInfo relative_frames_info;
     relative_frames_info.source_frame = source_frame;
     relative_frames_info.dest_frame = dest_frame;
-    
     relative_frame_pub.publish(relative_frames_info);
+    ros::Duration(0.3).sleep();
 }
 
 //get relative pose, add it to the graph, optimize it and print it
-void relative_pose_callback(const pg_editor::RelativePoseInfoConstPtr &msg)
+void relativePoseCallback(const pg_editor::RelativePoseInfoConstPtr &msg)
 {
     Transform T;
     T(0,3) = msg->pose.position.x;
@@ -245,29 +282,24 @@ void relative_pose_callback(const pg_editor::RelativePoseInfoConstPtr &msg)
         T(i, j) = R[i][j];
     }
 
+    ROS_INFO("%s %s", msg->source_frame.c_str(), msg->dest_frame.c_str());
+    printTransform(T);
+
     ParamMatrix H;
     for(std::size_t i=0; i<PARAM_DIM; i++)
         H(i,i) = 0.01;
 
-    addRelativeFactor(graph, id_to_sensorDataID_map[msg->source_frame], id_to_sensorDataID_map[msg->dest_frame], T, H);
-    //optimize
-    graph.optimize(false);        
+    //Graph graph = *graph_ptr;
+    
+    addRelativeFactor(*graph_ptr, id_to_sensorDataID_map[msg->source_frame], id_to_sensorDataID_map[msg->dest_frame], T, H);
 
-    //visualize
-    std::vector<Graph::DataID> var_indices;
-    graph.getVariableIndices(var_indices);
-    ROS_INFO("variable size: %d", var_indices.size());
-
-    auto var = graph.getVariable<Pose>(0);
-    ROS_INFO_STREAM("data:" << var->getData());
-    ROS_INFO_STREAM("factor size: " << var->getNumFactors());
-
-    auto factor = var->getFactor(0).lock();
-    ROS_INFO("factor type: %d",factor->type());
-
+    if(do_optimize){
+        optimizeGraph(*graph_ptr);
+    }
 }
 
-void publisher_init(){
+void publisherInit(){
+
 
 
 }
@@ -283,13 +315,18 @@ pg_editor::TransformationInfo pose_to_transforminfo(geometry_msgs::Pose pose, in
     transformationInfo.ty = pose.position.y;
     transformationInfo.tz = pose.position.z;
     transformationInfo.info_name = "pgo";
+
+    return transformationInfo;
 }
 
-void publish_results(){
+void publishResults(Graph &graph){
     visualization_msgs::Marker marker;
     geometry_msgs::PoseArray pose_array;
     std::vector<std::size_t> indices;
     graph.createMsgToVisualize(marker, pose_array, indices); 
+
+
+    ROS_INFO("pose array size: %d", pose_array.poses.size());    
 
     transforminfos_pgo_pd0 = pose_to_transforminfo(pose_array.poses.at(0), 0);
     transforminfos_pgo_pd1 = pose_to_transforminfo(pose_array.poses.at(1), 1);
@@ -297,17 +334,40 @@ void publish_results(){
     transforminfos_pgo_xt1 = pose_to_transforminfo(pose_array.poses.at(3), 3);
     transforminfos_pgo_xt2 = pose_to_transforminfo(pose_array.poses.at(4), 4);
 
+
     pgo_xt32_0_pub.publish(transforminfos_pgo_xt0);
     pgo_xt32_1_pub.publish(transforminfos_pgo_xt1);
     pgo_xt32_2_pub.publish(transforminfos_pgo_xt2);
     pgo_pd0_pub.publish(transforminfos_pgo_pd0);
     pgo_pd1_pub.publish(transforminfos_pgo_pd1);
+
+    ROS_INFO("done request");
 }
 
-void init_sensorDataID(){
+void initGraph(Graph& graph){
+
     pointcloud_tools::SensorDataID id;
     id.bag_time = "2022-06-14-17-30-13";
     id.sensor = "pandar64_0";
+    id.time_step = 0;
+    id.vehicle = "solati_v5_1";
+
+    Transform T(Transform::eye());
+    ParamMatrix H(ParamMatrix::eye());
+    for(std::size_t i=0; i<PARAM_DIM; i++)
+        H(i,i) = 0.00001;
+
+    addAbsFactor(graph, id, T, H);
+
+    requestRelativeFactor("pandar64_0", "pandar64_1");
+    requestRelativeFactor("pandar64_0", "xt32_0");
+    requestRelativeFactor("pandar64_1", "xt32_1");
+    requestRelativeFactor("xt32_1", "xt32_2");
+}
+
+void initSensorDataID(){
+    pointcloud_tools::SensorDataID id;
+    id.bag_time = "2022-06-14-17-30-13";
     id.time_step = 0;
     id.vehicle = "solati_v5_1";
 
@@ -324,42 +384,58 @@ void init_sensorDataID(){
     id_to_sensorDataID_map.insert(std::make_pair("xt32_2",id));
 }
 
+
+
 int main(int argc, char **argv){
     ros::init(argc, argv, "pose_graph_example_node");
     ros::NodeHandle nh("~");
 
-    init_sensorDataID();
+    Graph graph;
+
+    //graph_ptr = std::make_shared<Graph>(graph);
+    graph_ptr = &graph;
 
     first_pub = nh.advertise<visualization_msgs::Marker>("/first_marker", 1);
     second_pub = nh.advertise<visualization_msgs::Marker>("/second_marker", 1);
 
-    relative_frame_pub = nh.advertise<pg_editor::RelativeFramesInfo>("/relative_frame", 1);
-    relative_pose_sub = nh.subscribe<pg_editor::RelativePoseInfo>("/relative_pose", 1, relative_pose_callback);
-
+    relative_frame_pub = nh.advertise<pg_editor::RelativeFramesInfo>("/relative_frame", 10);
+    relative_pose_sub = nh.subscribe<pg_editor::RelativePoseInfo>("/relative_pose", 10, relativePoseCallback);
 
     edge_pub = nh.advertise<visualization_msgs::Marker>("graph_edge",1, true);
     pose_pub = nh.advertise<geometry_msgs::PoseArray>("graph_pose",1, true);
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc",1, true);
-
 
     pgo_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_0", 1);
     pgo_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_1", 1);
     pgo_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_2", 1);
     pgo_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar0", 1);
     pgo_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar1", 1);
+    
+    ros::Duration(3.0).sleep();
 
+    initSensorDataID();
+
+    initGraph(graph);
+
+    ros::Duration(3.0).sleep();
+
+    ros::spinOnce();
+
+    optimizeGraph(graph);
+
+    do_optimize = true;
 
     server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
 
     /* optimization start*/
 
     while(ros::ok()){
-        publish_results();
+        ROS_INFO("loop");
+        publishResults(graph);
         ros::spinOnce();
-        ros::Duration(0.1).sleep();
+        ros::Duration(1).sleep();
     }
     
-    // ros::spin();
 
     // while(ros::ok())
     //     ros::spinOnce();
