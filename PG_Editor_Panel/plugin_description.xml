@@ -1,0 +1,9 @@
+<library path="lib/libpg_editor_panel">
+    <class name="pg_editor_panel/PGEditorPanel"
+           type="pg_editor_panel::PGEditorPanel"
+           base_class_type="rviz::Panel">
+        <description>
+            rviz panel for pg_editor
+        </description>
+    </class>
+</library>
