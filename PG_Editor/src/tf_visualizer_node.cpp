@@ -9,9 +9,9 @@ const int N=5;
 tf::Transform pgo_trforms[N];
 
 
-void pgo_tf_handler_callback(const pg_editor::TransformationInfoConstPtr &msg)
+void pgoTFHandlerCallback(const pg_editor::TransformationInfoConstPtr &msg)
 {
-    ROS_INFO("called");
+    //ROS_INFO("called");
     tf::Transform* trform;
     trform = &pgo_trforms[msg->frame_num];
 
@@ -26,11 +26,12 @@ int main(int argc, char **argv)
 
     tf::TransformBroadcaster broadcaster;
 
-    ros::Subscriber pgo_xt32_0_subs = nh.subscribe("/pgo_xt32_0", 1, pgo_tf_handler_callback);
-    ros::Subscriber pgo_xt32_1_subs = nh.subscribe("/pgo_xt32_1", 1, pgo_tf_handler_callback);
-    ros::Subscriber pgo_xt32_2_subs = nh.subscribe("/pgo_xt32_2", 1, pgo_tf_handler_callback);
-    ros::Subscriber pgo_pd0_subs = nh.subscribe("/pgo_pandar0", 1, pgo_tf_handler_callback);
-    ros::Subscriber pgo_pd1_subs = nh.subscribe("/pgo_pandar1", 1, pgo_tf_handler_callback);
+    ros::Subscriber pgo_pd0_subs = nh.subscribe("/pgo_pandar0", 1, pgoTFHandlerCallback);
+    ros::Subscriber pgo_pd1_subs = nh.subscribe("/pgo_pandar1", 1, pgoTFHandlerCallback);
+    ros::Subscriber pgo_xt32_0_subs = nh.subscribe("/pgo_xt32_0", 1, pgoTFHandlerCallback);
+    ros::Subscriber pgo_xt32_1_subs = nh.subscribe("/pgo_xt32_1", 1, pgoTFHandlerCallback);
+    ros::Subscriber pgo_xt32_2_subs = nh.subscribe("/pgo_xt32_2", 1, pgoTFHandlerCallback);
+
 
 
     while (ros::ok())

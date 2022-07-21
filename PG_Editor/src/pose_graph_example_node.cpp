@@ -13,12 +13,19 @@
 
 #include <gihyun_custom/rot2quat.h>
 
+#include <std_msgs/Int32MultiArray.h>
+
+#define ADD 0
+#define REMOVE 1
+
 using namespace visualization_msgs;
 using namespace interactive_markers;
 
 using namespace pg_lib;
 boost::shared_ptr<InteractiveMarkerServer> server;
 
+
+const int N = 5;
 
 ros::Publisher first_pub;
 ros::Publisher second_pub;
@@ -38,6 +45,8 @@ ros::Publisher pgo_xt32_2_pub;
 ros::Publisher pgo_pd0_pub;
 ros::Publisher pgo_pd1_pub;
 
+std::vector<std::string> frame_id_list;
+
 pg_editor::TransformationInfo transforminfos_pgo_xt0, transforminfos_pgo_xt1, transforminfos_pgo_xt2, transforminfos_pgo_pd0, transforminfos_pgo_pd1;
 
 std::map<std::string, pointcloud_tools::SensorDataID> id_to_sensorDataID_map;
@@ -46,6 +55,7 @@ std::map<std::string, pointcloud_tools::SensorDataID> id_to_sensorDataID_map;
 Graph* graph_ptr;
 
 bool do_optimize = false;
+int add_or_remove;
 
 
 void printTransform(Transform transform){
@@ -75,7 +85,7 @@ Marker makeBox(InteractiveMarker &msg)
 {
     Marker marker;
 
-    marker.type = Marker::CUBE;
+    marker.type = Marker::SPHERE;
     marker.scale.x = msg.scale * 0.45;
     marker.scale.y = msg.scale * 0.45;
     marker.scale.z = msg.scale * 0.45;
@@ -117,6 +127,9 @@ void setFirst(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedb
     // marker.scale.z = 1;
     // marker.text = "first";
     pose1 = feedback.get()->pose;
+    ROS_INFO("set first");
+    return;
+    ROS_INFO("set first: %d", feedback.get()->menu_entry_id);
 }
 
 void setSecond(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
@@ -166,8 +179,8 @@ MenuHandler initMenu(geometry_msgs::Pose pose)
     menu_handler.insert(pose_menu, "qy "+std::to_string(pose.orientation.y));
     menu_handler.insert(pose_menu, "qz "+std::to_string(pose.orientation.z));
     menu_handler.insert(pose_menu, "qw "+std::to_string(pose.orientation.w));
-    menu_handler.insert("first set", &setFirst);
-    menu_handler.insert("second set", &setSecond); 
+    //menu_handler.insert("Set First", &setFirst);
+    //menu_handler.insert("Set Second", &setSecond); 
     return menu_handler;
 }
 
@@ -181,6 +194,7 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
     if(!indices.empty()){
         marker.header.frame_id = pose_array.header.frame_id = frame_id;
         marker.header.stamp = pose_array.header.stamp = ros::Time::now();
+        //marker.type = visualization_msgs::Marker::ARROW;
 
         ros::NodeHandle nh_priv("~");
         marker.id = 0;
@@ -252,9 +266,16 @@ bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, poi
 }
 
 
-bool removeRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, pointcloud_tools::SensorDataID &id_in){
+void removeRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, pointcloud_tools::SensorDataID &id_in, Transform &T, ParamMatrix &H){
 
+    auto pose_ref = graph.getVariable<Pose>(id_ref, true);
+    auto pose_in = graph.getVariable<Pose>(id_in, true);
+    
+    Factor::Ptr factor = std::make_shared<RelativePose2Factor>(pose_ref, pose_in, T, H);
+    factor->setIsReliable(true);
 
+    graph.removeFactor(factor);
+    return;
 }
 
 //OK
@@ -291,15 +312,16 @@ void relativePoseCallback(const pg_editor::RelativePoseInfoConstPtr &msg)
 
     //Graph graph = *graph_ptr;
     
-    addRelativeFactor(*graph_ptr, id_to_sensorDataID_map[msg->source_frame], id_to_sensorDataID_map[msg->dest_frame], T, H);
+    if(add_or_remove == ADD) addRelativeFactor(*graph_ptr, id_to_sensorDataID_map[msg->source_frame], id_to_sensorDataID_map[msg->dest_frame], T, H);
+    else if(add_or_remove = REMOVE) removeRelativeFactor(*graph_ptr, id_to_sensorDataID_map[msg->source_frame], id_to_sensorDataID_map[msg->dest_frame], T, H);
 
     if(do_optimize){
         optimizeGraph(*graph_ptr);
     }
+    //ROS_INFO("call back done");
 }
 
 void publisherInit(){
-
 
 
 }
@@ -326,7 +348,7 @@ void publishResults(Graph &graph){
     graph.createMsgToVisualize(marker, pose_array, indices); 
 
 
-    ROS_INFO("pose array size: %d", pose_array.poses.size());    
+    //ROS_INFO("pose array size: %d", pose_array.poses.size());    
 
     transforminfos_pgo_pd0 = pose_to_transforminfo(pose_array.poses.at(0), 0);
     transforminfos_pgo_pd1 = pose_to_transforminfo(pose_array.poses.at(1), 1);
@@ -335,15 +357,17 @@ void publishResults(Graph &graph){
     transforminfos_pgo_xt2 = pose_to_transforminfo(pose_array.poses.at(4), 4);
 
 
+    pgo_pd0_pub.publish(transforminfos_pgo_pd0);
+    pgo_pd1_pub.publish(transforminfos_pgo_pd1);
     pgo_xt32_0_pub.publish(transforminfos_pgo_xt0);
     pgo_xt32_1_pub.publish(transforminfos_pgo_xt1);
     pgo_xt32_2_pub.publish(transforminfos_pgo_xt2);
-    pgo_pd0_pub.publish(transforminfos_pgo_pd0);
-    pgo_pd1_pub.publish(transforminfos_pgo_pd1);
+
+
 
     visualizeGraph(graph, edge_pub, pose_pub, pose_pc_pub, "pgo_antenna");
 
-    ROS_INFO("done request");
+    //ROS_INFO("done request");
 }
 
 void initGraph(Graph& graph){
@@ -386,11 +410,31 @@ void initSensorDataID(){
     id_to_sensorDataID_map.insert(std::make_pair("xt32_2",id));
 }
 
+void addIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr& msg){
+    ROS_INFO("Add factor");
+    //publish "/relative_frame"
+    add_or_remove = ADD;
+    requestRelativeFactor(frame_id_list.at(msg->data.at(0)), frame_id_list.at(msg->data.at(1)));
+}
+
+void removeIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr& msg){
+    ROS_INFO("Remove factor");
+    //publish "/relative_frame"
+    add_or_remove = REMOVE;
+    requestRelativeFactor(frame_id_list.at(msg->data.at(0)), frame_id_list.at(msg->data.at(1)));
+}
+
 
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "pose_graph_example_node");
     ros::NodeHandle nh("~");
+
+    frame_id_list.push_back("pandar64_0");
+    frame_id_list.push_back("pandar64_1");
+    frame_id_list.push_back("xt32_0");
+    frame_id_list.push_back("xt32_1");
+    frame_id_list.push_back("xt32_2");
 
     Graph graph;
 
@@ -407,19 +451,25 @@ int main(int argc, char **argv){
     pose_pub = nh.advertise<geometry_msgs::PoseArray>("graph_pose",1, true);
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc",1, true);
 
+
+    pgo_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar0", 1);
+    pgo_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar1", 1);
     pgo_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_0", 1);
     pgo_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_1", 1);
     pgo_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_2", 1);
-    pgo_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar0", 1);
-    pgo_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar1", 1);
+
+
+    ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
+    ros::Subscriber remove_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/remove_edge_index_array", 10, removeIndexArrayCallback);
+
     
-    ros::Duration(3.0).sleep();
+    ros::Duration(3).sleep();
 
     initSensorDataID();
 
     initGraph(graph);
 
-    ros::Duration(3.0).sleep();
+    ros::Duration(0.3).sleep();
 
     ros::spinOnce();
 
@@ -429,15 +479,17 @@ int main(int argc, char **argv){
 
     server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
 
+    //ROS_INFO("first opti");
+
     /* optimization start*/
 
     while(ros::ok()){
-        ROS_INFO("loop");
+        //ROS_INFO("loop");
+        //ros::spin();
         publishResults(graph);
         ros::spinOnce();
-        ros::Duration(1).sleep();
+        ros::Duration(0.3).sleep();
     }
-    
 
     // while(ros::ok())
     //     ros::spinOnce();

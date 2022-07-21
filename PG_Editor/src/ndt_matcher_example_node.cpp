@@ -15,6 +15,7 @@
 
 #include <pg_editor/RelativeFramesInfo.h>
 #include <pg_editor/RelativePoseInfo.h>
+#include <std_msgs/Int32MultiArray.h>
 
 
 using pointcloud_tools::NDTOctreeGPU;
@@ -33,7 +34,6 @@ using IndexScalar = typename NDTOctreeGPU::IndexScalar;
 std::string root_dirname_ = "/home/rideflux/Data/output/pc";
 
 
-
 //global maps
 std::map<std::pair<std::string, std::string>, Transform> id_id_transform_table;
 std::map<std::string, sensor_msgs::PointCloud2> id_pointcloud_map;
@@ -48,6 +48,9 @@ Transform T_ant_to_xt0, T_ant_to_xt1, T_ant_to_xt2, T_ant_to_pd0, T_ant_to_pd1;
 
 ros::Subscriber relative_frame_sub;
 ros::Publisher relative_pose_pub;
+
+const int N = 5;
+bool pc_publish_or_not [N] = {true, true, true, true, true};
 
 
 struct MatchingOptions
@@ -300,11 +303,12 @@ void readPointclouds(){
     readPointcloud(data_id5, field_names, pc_xt2);
     
 
+    pc_pandar0.header.frame_id = "pgo_pandar64_0";
+    pc_pandar1.header.frame_id = "pgo_pandar64_1";
     pc_xt0.header.frame_id = "pgo_xt32_0";
     pc_xt1.header.frame_id = "pgo_xt32_1";
     pc_xt2.header.frame_id = "pgo_xt32_2";
-    pc_pandar0.header.frame_id = "pgo_pandar64_0";
-    pc_pandar1.header.frame_id = "pgo_pandar64_1";
+
 
 }
 
@@ -318,11 +322,13 @@ void printTransform(Transform transform){
 
 
 void initIdPointcloudMap(){
+
+    id_pointcloud_map.insert(std::make_pair("pandar64_0", pc_pandar0));
+    id_pointcloud_map.insert(std::make_pair("pandar64_1", pc_pandar1));
     id_pointcloud_map.insert(std::make_pair("xt32_0", pc_xt0));
     id_pointcloud_map.insert(std::make_pair("xt32_1", pc_xt1));
     id_pointcloud_map.insert(std::make_pair("xt32_2", pc_xt2));
-    id_pointcloud_map.insert(std::make_pair("pandar64_0", pc_pandar0));
-    id_pointcloud_map.insert(std::make_pair("pandar64_1", pc_pandar1));
+
 }
 
 void set_T_ant_to_frames(){
@@ -409,6 +415,12 @@ void relativeFrameCallback(const pg_editor::RelativeFramesInfoConstPtr &msg){
     ros::Duration(0.1).sleep();
 }
 
+void indexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr& msg){
+    for(int i=0; i<N; i++){
+        pc_publish_or_not[i] = msg->data.at(i)==1;
+    }
+}
+
 int main(int argc, char **argv){
     ros::init(argc, argv, "ndt_matcher_example_node");
     ros::NodeHandle nh("~");
@@ -416,18 +428,23 @@ int main(int argc, char **argv){
     relative_pose_pub = nh.advertise<pg_editor::RelativePoseInfo>("/relative_pose", 10);
     relative_frame_sub = nh.subscribe<pg_editor::RelativeFramesInfo>("/relative_frame", 10, relativeFrameCallback);
 
+
+    ros::Publisher pc_pd0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar0", 1);
+    ros::Publisher pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar1", 1);
     ros::Publisher pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt0", 1);
     ros::Publisher pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt1", 1);
     ros::Publisher pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt2", 1);
-    ros::Publisher pc_pd0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar0", 1);
-    ros::Publisher pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar1", 1);
 
 
+    ros::Subscriber pc_viz_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/visualize_index_array", 1, indexArrayCallback);
+
+
+    frame_name_list.push_back("pandar64_0");
+    frame_name_list.push_back("pandar64_1");
     frame_name_list.push_back("xt32_0");
     frame_name_list.push_back("xt32_1");
     frame_name_list.push_back("xt32_2");
-    frame_name_list.push_back("pandar64_0");
-    frame_name_list.push_back("pandar64_1");
+
 
     readPointclouds();
 
@@ -440,14 +457,15 @@ int main(int argc, char **argv){
 
     printTransform(T_ant_to_pd0);
 
+
+    id_default_transform_map.insert(std::make_pair("pandar64_0", T_ant_to_pd0));
+    id_default_transform_map.insert(std::make_pair("pandar64_1", T_ant_to_pd1));
     id_default_transform_map.insert(std::make_pair("xt32_0", T_ant_to_xt0));
     id_default_transform_map.insert(std::make_pair("xt32_1", T_ant_to_xt1));
     id_default_transform_map.insert(std::make_pair("xt32_2", T_ant_to_xt2));
-    id_default_transform_map.insert(std::make_pair("pandar64_0", T_ant_to_pd0));
-    id_default_transform_map.insert(std::make_pair("pandar64_1", T_ant_to_pd1));
+
 
     makeNdtTable();
-
 
     while(ros::ok()){
         pc_pandar0.header.stamp = ros::Time::now();
@@ -456,125 +474,17 @@ int main(int argc, char **argv){
         pc_xt1.header.stamp = ros::Time::now();
         pc_xt2.header.stamp = ros::Time::now();
 
-        pc_pd0_pub.publish(pc_pandar0);
-        pc_pd1_pub.publish(pc_pandar1);
-        pc_xt0_pub.publish(pc_xt0);
-        pc_xt1_pub.publish(pc_xt1);
-        pc_xt2_pub.publish(pc_xt2);
+        //ROS_INFO("%d %d %d %d %d", pc_publish_or_not[0], pc_publish_or_not[1], pc_publish_or_not[2], pc_publish_or_not[3], pc_publish_or_not[4]);
+
+        if(pc_publish_or_not[0]) pc_pd0_pub.publish(pc_pandar0);
+        if(pc_publish_or_not[1]) pc_pd1_pub.publish(pc_pandar1);
+        if(pc_publish_or_not[2]) pc_xt0_pub.publish(pc_xt0);
+        if(pc_publish_or_not[3]) pc_xt1_pub.publish(pc_xt1);
+        if(pc_publish_or_not[4]) pc_xt2_pub.publish(pc_xt2);
 
         ros::Duration(0.1).sleep();
         ros::spinOnce();
     }
 
-    //Optimization start
-    // T_tree_pd0 = T_ant_to_pd0;
-    // T_tree_pd1 = iterative_ndt(T_ant_to_pd0.inv()*T_ant_to_pd1, pc_tree_pandar0, pc_tree_pandar1, 0.4, 0.2);
-    // T_tree_xt0 = iterative_ndt(T_ant_to_pd0.inv()*T_ant_to_xt0, pc_tree_pandar0, pc_tree_xt0, 0.4, 0.2);
-    // T_tree_xt1 = iterative_ndt(T_ant_to_pd1.inv()*T_ant_to_xt1, pc_tree_pandar1, pc_tree_xt1, 0.4, 0.2);
-    // T_tree_xt2 = iterative_ndt(T_ant_to_xt1.inv()*T_ant_to_xt2, pc_tree_xt1, pc_tree_xt2, 0.4, 0.2);
-
-    // T_xt0_to_pd1 = iterative_ndt(T_ant_to_xt0.inv()*T_ant_to_pd1, pc_tree_xt0, pc_tree_pandar1, 0.4, 0.2);
-    
-    
-    //Optimization ends
-
-    //est_list : estimation result list(result is Transform type because of function definition)
-    //tf::Transform - type used for 
-    
-
-    /*
-    int N=5;
-
-    rf_geometry::SO<double, 3UL> rotation;
-    cv::Matx<double, 3UL, 3UL> cv_rotation_matrix;
-    cv::Vec<double, 3UL> cv_translation_vector;
-    tf::TransformBroadcaster broadcaster;
-    tf::Quaternion quaternion;
-    pg_editor::TransformationInfo transforminfos_xt0, transforminfos_xt1, transforminfos_xt2, transforminfos_pd0, transforminfos_pd1; 
-    pg_editor::TransformationInfo transforminfos_tree_xt0, transforminfos_tree_xt1, transforminfos_tree_xt2, transforminfos_tree_pd0, transforminfos_tree_pd1; 
-
-
-    for(int i=0; i<5; i++){
-        rotation = est_list.at(i).getRotation();
-        cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
-        cv_translation_vector = est_list.at(i).getTranslation();
-        quaternion = mRot2Quat(cv_rotation_matrix);
-
-        tf_info_list.at(i)->frame_num = i;
-
-        tf_info_list.at(i)->qx = quaternion.getX();
-        tf_info_list.at(i)->qy = quaternion.getY();
-        tf_info_list.at(i)->qz = quaternion.getZ();
-        tf_info_list.at(i)->qw = quaternion.getW();
-
-        tf_info_list.at(i)->tx = cv_translation_vector[0];
-        tf_info_list.at(i)->ty = cv_translation_vector[1];
-        tf_info_list.at(i)->tz = cv_translation_vector[2];
-
-        tf_info_list.at(i)->info_name = "raw";
-    }
-
-
-    for(int i=0; i<5; i++){
-        rotation = tree_est_list.at(i).getRotation();
-        cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
-        cv_translation_vector = tree_est_list.at(i).getTranslation();
-        quaternion = mRot2Quat(cv_rotation_matrix);
-
-        tree_tf_info_list.at(i)->frame_num = i;
-
-        tree_tf_info_list.at(i)->qx = quaternion.getX();
-        tree_tf_info_list.at(i)->qy = quaternion.getY();
-        tree_tf_info_list.at(i)->qz = quaternion.getZ();
-        tree_tf_info_list.at(i)->qw = quaternion.getW();
-
-        tree_tf_info_list.at(i)->tx = cv_translation_vector[0];
-        tree_tf_info_list.at(i)->ty = cv_translation_vector[1];
-        tree_tf_info_list.at(i)->tz = cv_translation_vector[2];
-
-        tree_tf_info_list.at(i)->info_name = "tree";
-
-        if(i!=3){
-            ROS_INFO("%s: %f, %f, %f, %f, %f, %f, %f", sensor_to_sensor.at(i).c_str(), cv_translation_vector[0], cv_translation_vector[1], cv_translation_vector[2], quaternion.getX(), quaternion.getY(), quaternion.getZ(), quaternion.getW());  
-        }
-    }
-
-    rotation = T_xt0_to_pd1.getRotation();
-    cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
-    cv_translation_vector = T_xt0_to_pd1.getTranslation();
-    quaternion = mRot2Quat(cv_rotation_matrix);
-
-    ROS_INFO("xt0 to pd1: %f, %f, %f, %f, %f, %f, %f", cv_translation_vector[0], cv_translation_vector[1], cv_translation_vector[2], quaternion.getX(), quaternion.getY(), quaternion.getZ(), quaternion.getW());  
-
-    tf::Matrix3x3 mat(quaternion);
-
-
-    while(ros::ok()){
-        pc_pandar0.header.stamp = ros::Time::now();
-        pc_pandar1.header.stamp = ros::Time::now();
-        pc_xt0.header.stamp = ros::Time::now();
-        pc_xt1.header.stamp = ros::Time::now();
-        pc_xt2.header.stamp = ros::Time::now();
-
-        pc_pd0_pub.publish(pc_pandar0);
-        pc_pd1_pub.publish(pc_pandar1);
-        pc_xt0_pub.publish(pc_xt0);
-        pc_xt1_pub.publish(pc_xt1);
-        pc_xt2_pub.publish(pc_xt2);
-        
-        xt32_0_pub.publish(transforminfos_xt0);
-        xt32_1_pub.publish(transforminfos_xt1);
-        xt32_2_pub.publish(transforminfos_xt2);
-        pd0_pub.publish(transforminfos_pd0);
-        pd1_pub.publish(transforminfos_pd1);
-
-        pc_tree_pandar0.header.stamp = ros::Time::now();
-        pc_tree_pandar1.header.stamp = ros::Time::now();
-        pc_tree_xt0.header.stamp = ros::Time::now();
-        pc_tree_xt1.header.stamp = ros::Time::now();
-        pc_tree_xt2.header.stamp = ros::Time::now();
-
-        ros::Duration(0.1).sleep();
-    }*/
     return 0;
 }
