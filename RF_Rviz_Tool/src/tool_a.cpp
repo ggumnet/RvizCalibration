@@ -56,7 +56,7 @@ void ToolA::onInitialize()
 }
 void ToolA::activate()
 {
-  ROS_INFO_STREAM("tool a activatged\n");
+  ROS_INFO_STREAM("tool a activated\n");
   std_msgs::Int32 msg;
   msg.data = 0;
   keyPub.publish(msg);

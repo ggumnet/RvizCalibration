@@ -20,9 +20,13 @@
 #include <QSlider>
 #include <QString>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QComboBox>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
+#include <QTableView>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 
 #include <QKeyEvent>
 
@@ -34,6 +38,7 @@
 
 #include <vector>
 #include <std_srvs/Empty.h>
+#include <std_msgs/Empty.h>
 
 namespace pg_editor_panel
 {
@@ -49,7 +54,8 @@ public:
 private Q_SLOTS:
   void saveData();
   void uploadNAS();
-  void enumFactor();
+  void addFactor();
+  void removeFactor();
   void optimize();
   void uploadReleasedNAS();
 //   void loadData();
@@ -60,8 +66,9 @@ private:
   ros::ServiceClient save_client_;
   ros::ServiceClient bin_to_tree_client_;
   ros::ServiceClient upload_client_, upload_released_client_;
-  ros::ServiceClient enum_factor_client, optimize_client;
+  ros::ServiceClient add_factor_client, optimize_client;
   ros::ServiceClient client_export_graph;
+  ros::Publisher remove_msg_pubs, add_msg_pubs;
   std::string area, proc_path;
   int zone,yymmdd, worker_id;
 };

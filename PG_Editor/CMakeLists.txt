@@ -42,11 +42,21 @@ find_package(PythonLibs 2.7)
 add_message_files(
   FILES
   TransformationInfo.msg
+  RelativeFramesInfo.msg
+  RelativePoseInfo.msg
 )
+
+add_service_files(
+  FILES
+  AddFactor.srv
+)
+
 
 generate_messages(
   DEPENDENCIES
   std_msgs
+  rideflux_msgs
+  geometry_msgs
 )
 
 catkin_package(
@@ -90,18 +100,21 @@ target_link_libraries(tf_visualizer_node2
 )
 add_dependencies(tf_visualizer_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(interactive_marker src/interactive_marker.cpp)
-target_link_libraries(interactive_marker
+
+add_executable(a_click_receiver_node src/a_click_receiver_node.cpp)
+target_link_libraries(a_click_receiver_node
   # ${rf_lib}
   ${catkin_LIBRARIES}
   ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
 )
-add_dependencies(interactive_marker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(a_click_receiver_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-
-install(TARGETS pose_graph_example_node ndt_matcher_example_node2 tf_visualizer_node2 interactive_marker
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+add_executable(read_imu_pose_data src/read_imu_pose_data.cpp)
+target_link_libraries(read_imu_pose_data
+  # ${rf_lib}
+  ${catkin_LIBRARIES}
+  ${MKL_LIBRARIES}
+  # ${TBB_LIBRARIES}
 )
+add_dependencies(read_imu_pose_data ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
