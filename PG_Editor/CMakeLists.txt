@@ -100,14 +100,6 @@ target_link_libraries(tf_visualizer_node2
 )
 add_dependencies(tf_visualizer_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(menu src/menu.cpp)
-target_link_libraries(menu
-  # ${rf_lib}
-  ${catkin_LIBRARIES}
-  ${MKL_LIBRARIES}
-  # ${TBB_LIBRARIES}
-)
-add_dependencies(menu ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_executable(a_click_receiver_node src/a_click_receiver_node.cpp)
 target_link_libraries(a_click_receiver_node
@@ -117,3 +109,12 @@ target_link_libraries(a_click_receiver_node
   # ${TBB_LIBRARIES}
 )
 add_dependencies(a_click_receiver_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(read_imu_pose_data src/read_imu_pose_data.cpp)
+target_link_libraries(read_imu_pose_data
+  # ${rf_lib}
+  ${catkin_LIBRARIES}
+  ${MKL_LIBRARIES}
+  # ${TBB_LIBRARIES}
+)
+add_dependencies(read_imu_pose_data ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

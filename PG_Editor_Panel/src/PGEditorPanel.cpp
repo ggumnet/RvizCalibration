@@ -90,11 +90,11 @@ PGEditorPanel::PGEditorPanel(QWidget *parent)
 
   rightLayout->addWidget(AddFactorButton);
 
-  QPushButton *OptimizeButton = new QPushButton(tr("Remove Factor"));
-  OptimizeButton->setStyleSheet("color: white; background-color: rgb(0,180,180); border-radius: 5px; height: 30px; margin-bottom: 5px;");
-  connect(OptimizeButton, SIGNAL(clicked()), this, SLOT(removeFactor()));
+  QPushButton *RemoveButton = new QPushButton(tr("Remove Factor"));
+  RemoveButton->setStyleSheet("color: white; background-color: rgb(0,180,180); border-radius: 5px; height: 30px; margin-bottom: 5px;");
+  connect(RemoveButton, SIGNAL(clicked()), this, SLOT(removeFactor()));
 
-  rightLayout->addWidget(OptimizeButton);
+  rightLayout->addWidget(RemoveButton);
   rightGroupBox->setLayout(rightLayout);
 
   mainLayout->addWidget(leftGroupBox);
@@ -137,12 +137,6 @@ void PGEditorPanel::saveData()
 
 void PGEditorPanel::addFactor()
 {
-  // std_srvs::Empty empty_srv;
-  // if(add_factor_client.call(empty_srv)){
-
-  // }else{
-  //   ROS_ERROR("Failed to add factor");
-  // }
   std_msgs::Empty empty_msg;
   //publish "/pg_editor_panel/add"
   add_msg_pubs.publish(empty_msg);
