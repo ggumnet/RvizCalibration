@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   rideflux_msgs
   rf_nd_tree
   tf
+  tf2_ros
   # rf_map_build_manager
 )
 ## System dependencies are found with CMake's conventions
@@ -118,3 +119,21 @@ target_link_libraries(read_imu_pose_data
   # ${TBB_LIBRARIES}
 )
 add_dependencies(read_imu_pose_data ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(tf_broadcaster_node src/tf_broadcaster_node.cpp)
+target_link_libraries(tf_broadcaster_node
+  # ${rf_lib}
+  ${catkin_LIBRARIES}
+  ${MKL_LIBRARIES}
+  # ${TBB_LIBRARIES}
+)
+add_dependencies(tf_broadcaster_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(lidar_imu_graph_calibration_example_node src/lidar_imu_graph_calibration_example_node.cpp)
+target_link_libraries(lidar_imu_graph_calibration_example_node
+  # ${rf_lib}
+  ${catkin_LIBRARIES}
+  ${MKL_LIBRARIES}
+  # ${TBB_LIBRARIES}
+)
+add_dependencies(lidar_imu_graph_calibration_example_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

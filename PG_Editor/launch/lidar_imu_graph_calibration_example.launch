@@ -1,0 +1,7 @@
+<launch>
+
+  <node pkg="pg_editor" name="tf_broadcaster_node" type="tf_broadcaster_node" output="screen"/>
+
+  <node pkg="pg_editor" name="lidar_imu_graph_calibration_example_node" type="lidar_imu_graph_calibration_example_node" output="screen"/>
+
+</launch>
