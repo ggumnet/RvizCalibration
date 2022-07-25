@@ -464,7 +464,6 @@ int main(int argc, char **argv){
     id_default_transform_map.insert(std::make_pair("xt32_1", T_ant_to_xt1));
     id_default_transform_map.insert(std::make_pair("xt32_2", T_ant_to_xt2));
 
-
     makeNdtTable();
 
     while(ros::ok()){

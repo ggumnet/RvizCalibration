@@ -11,7 +11,7 @@ tf::Transform pgo_trforms[N];
 
 void pgoTFHandlerCallback(const pg_editor::TransformationInfoConstPtr &msg)
 {
-    //ROS_INFO("called");
+    ROS_INFO("called");
     tf::Transform* trform;
     trform = &pgo_trforms[msg->frame_num];
 
@@ -26,8 +26,8 @@ int main(int argc, char **argv)
 
     tf::TransformBroadcaster broadcaster;
 
-    ros::Subscriber pgo_pd0_subs = nh.subscribe("/pgo_pandar0", 1, pgoTFHandlerCallback);
-    ros::Subscriber pgo_pd1_subs = nh.subscribe("/pgo_pandar1", 1, pgoTFHandlerCallback);
+    ros::Subscriber pgo_pd0_subs = nh.subscribe("/pgo_pandar64_0", 1, pgoTFHandlerCallback);
+    ros::Subscriber pgo_pd1_subs = nh.subscribe("/pgo_pandar64_1", 1, pgoTFHandlerCallback);
     ros::Subscriber pgo_xt32_0_subs = nh.subscribe("/pgo_xt32_0", 1, pgoTFHandlerCallback);
     ros::Subscriber pgo_xt32_1_subs = nh.subscribe("/pgo_xt32_1", 1, pgoTFHandlerCallback);
     ros::Subscriber pgo_xt32_2_subs = nh.subscribe("/pgo_xt32_2", 1, pgoTFHandlerCallback);
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
             broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[3], ros::Time::now(), "pgo_antenna", "pgo_xt32_1"));
             broadcaster.sendTransform(tf::StampedTransform(pgo_trforms[4], ros::Time::now(), "pgo_antenna", "pgo_xt32_2"));
 
-            ros::Duration(1.0).sleep();
+            ros::Duration(0.5).sleep();
         }
         catch (tf::TransformException &ex)
         {
