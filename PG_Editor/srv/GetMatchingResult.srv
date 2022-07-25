@@ -1,0 +1,5 @@
+string pointcloud_name1
+string pointcloud_name2
+geometry_msgs/Pose initial_pose
+---
+geometry_msgs/Pose result_pose
