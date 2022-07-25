@@ -452,8 +452,8 @@ int main(int argc, char **argv){
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc",1, true);
 
 
-    pgo_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar0", 1);
-    pgo_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar1", 1);
+    pgo_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar64_0", 1);
+    pgo_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar64_1", 1);
     pgo_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_0", 1);
     pgo_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_1", 1);
     pgo_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_2", 1);
