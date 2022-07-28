@@ -10,30 +10,18 @@
 #include <pointcloud_tools/ndt_octree_gpu.h>
 #include <pointcloud_tools/ndt_matcher_gpu.h>
 
-#include <gihyun_custom/rot2quat.h>
-
-#include <pg_editor/TransformationInfo.h>
 #include <pg_editor/RelativeFramesInfo.h>
 #include <pg_editor/RelativePoseInfo.h>
 #include <pg_editor/GetMatchingResult.h>
 #include <pg_editor/GetPointcloud.h>
 
-
 #include <std_msgs/Int32MultiArray.h>
 
+#include <rot2quat.h>
+#include <types.h>
+#include <transform_pose_conversion.h>
+#include <print_tool.h>
 
-using pointcloud_tools::NDTOctreeGPU;
-using NDTMatcherGPU = pointcloud_tools::NDTMatcherGPU<NDTOctreeGPU>;
-constexpr std::size_t DIM = NDTOctreeGPU::DIM;
-constexpr std::size_t PARAM_DIM = NDTMatcherGPU::PARAM_DIM;
-using Scalar = typename NDTOctreeGPU::Scalar;
-using Vector = typename NDTOctreeGPU::Vector;
-using Matrix = typename NDTOctreeGPU::Matrix;
-using VectorSet = typename NDTOctreeGPU::VectorSet;
-using Transform = typename NDTOctreeGPU::Transform;
-using ParamMatrix = typename NDTMatcherGPU::ParamMatrix;
-using ParamVector = typename NDTMatcherGPU::ParamVector;
-using IndexScalar = typename NDTOctreeGPU::IndexScalar;
 
 std::string root_dirname_ = "/home/rideflux/Data/output/pc";
 
@@ -48,14 +36,11 @@ std::map<std::string, rideflux_msgs::SensorDataID> id_DataID_map;
 rideflux_msgs::SensorDataID data_id1, data_id2, data_id3, data_id4, data_id5;
 std::vector<std::string> field_names{"x","y","z","intensity"};
 sensor_msgs::PointCloud2 pc_pandar0, pc_pandar1, pc_xt0, pc_xt1, pc_xt2;
-Transform T_ant_to_xt0, T_ant_to_xt1, T_ant_to_xt2, T_ant_to_pd0, T_ant_to_pd1;
 
 ros::Subscriber relative_frame_sub;
 ros::Publisher relative_pose_pub;
 
 const int N = 5;
-bool pc_publish_or_not [N] = {true, true, true, true, true};
-
 
 struct MatchingOptions
 {
@@ -117,53 +102,6 @@ Transform iterativeNdt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, sensor
     return T_est;
 }
 
-void printTransform(Transform transform){
-    rf_geometry::SO<double, 3UL> rotation = transform.getRotation();
-    cv::Matx<double, 3UL, 3UL> cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;
-    cv::Vec<double, 3UL> cv_translation_vector = transform.getTranslation();
-    tf::Quaternion quaternion = mRot2Quat(cv_rotation_matrix);
-    ROS_INFO("%f, %f, %f, %f, %f, %f, %f", cv_translation_vector[0], cv_translation_vector[1], cv_translation_vector[2], quaternion.getX(), quaternion.getY(), quaternion.getZ(), quaternion.getW());  
-}
-
-
-
-void set_T_ant_to_frames(){
-    T_ant_to_xt0.setRotation(cv::Matx<double, 3UL, 3UL>(-1,0,0,0,-1,0,0,0,1));
-    T_ant_to_xt0.setTranslation(cv::Matx31d(4.517, 1.022, -1.589));
-
-    T_ant_to_xt1.setRotation(cv::Matx<double, 3UL, 3UL>(1,0,0,0,1,0,0,0,1));
-    T_ant_to_xt1.setTranslation(cv::Matx31d(4.517, -1.042, -1.589));
-
-    T_ant_to_xt2.setRotation(cv::Matx<double, 3UL, 3UL>(0,1,0,-1,0,0,0,0,1));
-    T_ant_to_xt2.setTranslation(cv::Matx31d( -0.631, 0, -2.249));
-
-    T_ant_to_pd0.setRotation(cv::Matx<double, 3UL, 3UL>(-1,0,0,0,-1,0,0,0,1));
-    T_ant_to_pd0.setTranslation(cv::Matx31d(3.672, 0.930, -0.369));
-    
-    T_ant_to_pd1.setRotation(cv::Matx<double, 3UL, 3UL>(1,0,0,0,1,0,0,0,1));
-    T_ant_to_pd1.setTranslation(cv::Matx31d(3.672, -0.925, -0.369));
-}
-
-geometry_msgs::Pose transformToPose(Transform transform){
-
-    rf_geometry::SO<double, 3UL> rotation = transform.getRotation();
-    cv::Matx<double, 3UL, 3UL> cv_rotation_matrix = (cv::Matx<double, 3UL, 3UL>)rotation;;
-    cv::Vec<double, 3UL> cv_translation_vector = transform.getTranslation();
-    tf::Quaternion quaternion = mRot2Quat(cv_rotation_matrix);
-    
-    geometry_msgs::Pose pose;
-
-    pose.position.x = cv_translation_vector[0]; 
-    pose.position.y = cv_translation_vector[1];
-    pose.position.z = cv_translation_vector[2];
-    pose.orientation.x = quaternion.getX();
-    pose.orientation.y = quaternion.getY();
-    pose.orientation.z = quaternion.getZ();
-    pose.orientation.w = quaternion.getW();
-
-    return pose;
-}
-
 void relativeFrameCallback(const pg_editor::RelativeFramesInfoConstPtr &msg){
 
     ROS_INFO("called");
@@ -188,29 +126,33 @@ void relativeFrameCallback(const pg_editor::RelativeFramesInfoConstPtr &msg){
     ros::Duration(0.1).sleep();
 }
 
-void indexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr& msg){
-    for(int i=0; i<N; i++){
-        pc_publish_or_not[i] = msg->data.at(i)==1;
-    }
+//TODO
+bool matching_result_callback(pg_editor::GetMatchingResult::Request& req, pg_editor::GetMatchingResult::Response& res){
+    pg_editor::GetPointcloud pointcloud_service;
+    sensor_msgs::PointCloud2 pointcloud1, pointcloud2;
+    Transform T_init;
+
+    ROS_INFO("matching result callback called");
+
+    pointcloud1 = req.pointcloud1;
+    pointcloud2 = req.pointcloud2;
+
+    T_init = poseToTransform(req.initial_pose);
+    
+    Transform T_result = iterativeNdt(T_init, pointcloud1, pointcloud2, 0.4, 0.2);
+
+    res.result_pose = transformToPose(T_result);
+
+    return true;
 }
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "ndt_matching_server");
     ros::NodeHandle nh("~");
 
-    relative_pose_pub = nh.advertise<pg_editor::RelativePoseInfo>("/relative_pose", 10);
-    relative_frame_sub = nh.subscribe<pg_editor::RelativeFramesInfo>("/relative_frame", 10, relativeFrameCallback);
+    ROS_INFO("done");
 
-
-    ros::Publisher pc_pd0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar0", 1);
-    ros::Publisher pc_pd1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_pandar1", 1);
-    ros::Publisher pc_xt0_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt0", 1);
-    ros::Publisher pc_xt1_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt1", 1);
-    ros::Publisher pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt2", 1);
-
-
-    ros::Subscriber pc_viz_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/visualize_index_array", 1, indexArrayCallback);
-
+    ros::ServiceServer matching_result_service = nh.advertiseService("/matching_result", matching_result_callback);
 
     frame_name_list.push_back("pandar64_0");
     frame_name_list.push_back("pandar64_1");
@@ -218,45 +160,9 @@ int main(int argc, char **argv){
     frame_name_list.push_back("xt32_1");
     frame_name_list.push_back("xt32_2");
 
-
-    readPointclouds();
-
-    Transform T_tree_xt0, T_tree_xt1, T_tree_xt2, T_tree_pd0, T_tree_pd1;
-    Transform T_xt0_to_pd1;
-
-    initIdPointcloudMap();
-
-    set_T_ant_to_frames();
-
-    printTransform(T_ant_to_pd0);
-
-
-    id_default_transform_map.insert(std::make_pair("pandar64_0", T_ant_to_pd0));
-    id_default_transform_map.insert(std::make_pair("pandar64_1", T_ant_to_pd1));
-    id_default_transform_map.insert(std::make_pair("xt32_0", T_ant_to_xt0));
-    id_default_transform_map.insert(std::make_pair("xt32_1", T_ant_to_xt1));
-    id_default_transform_map.insert(std::make_pair("xt32_2", T_ant_to_xt2));
-
-    makeNdtTable();
-
     while(ros::ok()){
-        pc_pandar0.header.stamp = ros::Time::now();
-        pc_pandar1.header.stamp = ros::Time::now();
-        pc_xt0.header.stamp = ros::Time::now();
-        pc_xt1.header.stamp = ros::Time::now();
-        pc_xt2.header.stamp = ros::Time::now();
-
-        //ROS_INFO("%d %d %d %d %d", pc_publish_or_not[0], pc_publish_or_not[1], pc_publish_or_not[2], pc_publish_or_not[3], pc_publish_or_not[4]);
-
-        if(pc_publish_or_not[0]) pc_pd0_pub.publish(pc_pandar0);
-        if(pc_publish_or_not[1]) pc_pd1_pub.publish(pc_pandar1);
-        if(pc_publish_or_not[2]) pc_xt0_pub.publish(pc_xt0);
-        if(pc_publish_or_not[3]) pc_xt1_pub.publish(pc_xt1);
-        if(pc_publish_or_not[4]) pc_xt2_pub.publish(pc_xt2);
-
         ros::Duration(0.1).sleep();
         ros::spinOnce();
     }
-
     return 0;
 }

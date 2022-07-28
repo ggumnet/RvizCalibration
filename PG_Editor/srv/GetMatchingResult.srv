@@ -1,5 +1,5 @@
-string pointcloud_name1
-string pointcloud_name2
+sensor_msgs/PointCloud2 pointcloud1
+sensor_msgs/PointCloud2 pointcloud2
 geometry_msgs/Pose initial_pose
 ---
 geometry_msgs/Pose result_pose

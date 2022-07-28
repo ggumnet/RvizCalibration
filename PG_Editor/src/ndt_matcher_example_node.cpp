@@ -308,8 +308,6 @@ void readPointclouds(){
     pc_xt0.header.frame_id = "pgo_xt32_0";
     pc_xt1.header.frame_id = "pgo_xt32_1";
     pc_xt2.header.frame_id = "pgo_xt32_2";
-
-
 }
 
 void printTransform(Transform transform){

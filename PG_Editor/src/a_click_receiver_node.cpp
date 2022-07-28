@@ -3,16 +3,18 @@
 #include <std_msgs/Int32MultiArray.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <pg_editor/TransformationInfo.h>
 #include <map>
 #include <cmath>
 #include <visualization_msgs/Marker.h>
+#include <pg_editor/TransformationInfo.h>
 
 const int N=5;
 tf::Vector3 origin_list[N];
 
 std_msgs::Int32MultiArray index_array;
 ros::Publisher pc_viz_index_pubs, arrow_edge_pubs, add_index_pubs, remove_index_pubs;
+
+std::map<std::string, tf::Vector3> id_to_origin_map;
 
 int index1, index2;
 
@@ -32,13 +34,12 @@ float get3dDistance(tf::Vector3 vector1, tf::Vector3 vector2){
     return pow(pow(vector1.getX()-vector2.getX(),2) + pow(vector1.getY()-vector2.getY(),2) + pow(vector1.getZ()-vector2.getZ(),2), 0.5); 
 }
 
-void pgoTFHandlerCallback(const pg_editor::TransformationInfoConstPtr &msg)
+void transformInfoCallback(const pg_editor::TransformationInfoConstPtr &msg)
 {
-    //ROS_INFO("called");
+    ROS_INFO("tf callback called");
     tf::Vector3* origin;
-    origin = &origin_list[msg->frame_num];
-
-    origin->setX(msg->tx); origin->setY(msg->ty); origin->setZ(msg->tz);
+    origin = &id_to_origin_map[msg->frame_name];
+    origin->setX(msg->pose.position.x); origin->setY(msg->pose.position.y); origin->setZ(msg->pose.position.z);
 }
 
 int findClosestPoint(tf::Vector3 new_vector){
@@ -64,7 +65,7 @@ geometry_msgs::Point vector3toPoint(tf::Vector3 vector3){
 
 void publishArrowEdge(int index1, int index2){
     visualization_msgs::Marker marker;
-    marker.header.frame_id = "pgo_antenna";
+    marker.header.frame_id = "antenna";
     marker.header.stamp = ros::Time::now();
 
     marker.type = visualization_msgs::Marker::ARROW;
@@ -157,11 +158,11 @@ int main(int argc, char **argv)
 
     tf::TransformBroadcaster broadcaster;
 
-    ros::Subscriber pgo_pd0_subs = nh.subscribe("/pgo_pandar0", 1, pgoTFHandlerCallback);
-    ros::Subscriber pgo_pd1_subs = nh.subscribe("/pgo_pandar1", 1, pgoTFHandlerCallback);
-    ros::Subscriber pgo_xt32_0_subs = nh.subscribe("/pgo_xt32_0", 1, pgoTFHandlerCallback);
-    ros::Subscriber pgo_xt32_1_subs = nh.subscribe("/pgo_xt32_1", 1, pgoTFHandlerCallback);
-    ros::Subscriber pgo_xt32_2_subs = nh.subscribe("/pgo_xt32_2", 1, pgoTFHandlerCallback);
+    ros::Subscriber pgo_pd0_subs = nh.subscribe("/pandar0_transform_info", 1, transformInfoCallback);
+    ros::Subscriber pgo_pd1_subs = nh.subscribe("/pandar1_transform_info", 1, transformInfoCallback);
+    ros::Subscriber pgo_xt32_0_subs = nh.subscribe("/xt32_transform_info", 1, transformInfoCallback);
+    ros::Subscriber pgo_xt32_1_subs = nh.subscribe("/xt32_transform_info", 1, transformInfoCallback);
+    ros::Subscriber pgo_xt32_2_subs = nh.subscribe("/xt32_transform_info", 1, transformInfoCallback);
 
     ros::Subscriber a_click_subs = nh.subscribe("/rf_tool_a_click", 1, aClickCallback);
     ros::Subscriber add_msg_subs = nh.subscribe("/pg_editor_panel/add", 1, addMsgCallback);
@@ -175,6 +176,11 @@ int main(int argc, char **argv)
     for(int i=0; i<N; i++){
         index_array.data.push_back(0);
     }
+    id_to_origin_map.insert(std::make_pair("pandar64_0", tf::Vector3()));
+    id_to_origin_map.insert(std::make_pair("pandar64_1", tf::Vector3()));
+    id_to_origin_map.insert(std::make_pair("xt32_0", tf::Vector3()));
+    id_to_origin_map.insert(std::make_pair("xt32_1", tf::Vector3()));
+    id_to_origin_map.insert(std::make_pair("xt32_2", tf::Vector3()));
 
     while (ros::ok())
     {

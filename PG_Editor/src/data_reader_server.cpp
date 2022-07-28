@@ -2,7 +2,6 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <pg_editor/TransformationInfo.h>
 #include <pg_editor/GetPointcloud.h>
 #include <map>
 #include <fstream>
@@ -10,6 +9,7 @@
 #include <rideflux_msgs/SensorDataID.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
+#include <pg_editor/TransformationInfo.h>
 
 std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1";
 std::string vehicle_ = "solati_v5_1";
@@ -238,7 +238,7 @@ void read_imu_data(){
 }
 
 bool pc_read_callback(pg_editor::GetPointcloud::Request &req, pg_editor::GetPointcloud::Response &res){
-    std::string pointcloud_name = data_dir_+"/"+req.pointcloud_name;
+    //ROS_INFO("pc read callback");
     sensor_msgs::PointCloud2 pc;
 
     rideflux_msgs::SensorDataID data_id;
@@ -247,7 +247,11 @@ bool pc_read_callback(pg_editor::GetPointcloud::Request &req, pg_editor::GetPoin
     data_id.time_step = 0;
     data_id.sensor = req.pointcloud_name;
 
-    readPointcloud(data_id, field_names, pc);
+    if(!readPointcloud(data_id, field_names, pc))
+        return false;
+    pc.header.frame_id = data_id.sensor;
+    res.pointcloud = pc;
+    return true;
 }
 
 int main(int argc, char **argv)
@@ -255,6 +259,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "data_reader_server");
     ros::NodeHandle nh;
     read_imu_data();
+    ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pc_read_callback);
 
-    ros::ServiceServer pc_read_service = nh.advertiseService("pc__read_service", pc_read_callback);
+    ros::spin();
 }

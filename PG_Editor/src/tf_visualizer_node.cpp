@@ -32,8 +32,6 @@ int main(int argc, char **argv)
     ros::Subscriber pgo_xt32_1_subs = nh.subscribe("/pgo_xt32_1", 1, pgoTFHandlerCallback);
     ros::Subscriber pgo_xt32_2_subs = nh.subscribe("/pgo_xt32_2", 1, pgoTFHandlerCallback);
 
-
-
     while (ros::ok())
     {
         try
