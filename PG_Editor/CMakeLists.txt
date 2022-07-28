@@ -42,16 +42,16 @@ find_package(PythonLibs 2.7)
 # set(rf_lib "/home/gw/rf_lib_ws/install/lib/libNDT_GPU_LIB.so;/home/gw/rf_lib_ws/install/lib/libpg_lib.so;/home/gw/rf_lib_ws/install/lib/libpointcloud_tools.so;/home/gw/rf_lib_ws/install/lib/librf_nd_tree.so")
 add_message_files(
   FILES
-  TransformationInfo.msg
   RelativeFramesInfo.msg
   RelativePoseInfo.msg
+  TransformationInfo.msg
 )
 
 add_service_files(
   FILES
   AddFactor.srv
+  GetMatchingResult.srv
 )
-
 
 generate_messages(
   DEPENDENCIES
@@ -73,34 +73,25 @@ include_directories(
   ${PYTHON_INCLUDE_DIRS}
 )
 
-add_executable(pose_graph_example_node src/pose_graph_example_node.cpp)
-target_link_libraries(pose_graph_example_node
+add_executable(main_server src/main_server.cpp)
+target_link_libraries(main_server
   # ${rf_lib}
   ${catkin_LIBRARIES}
   ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
 )
-add_dependencies(pose_graph_example_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(main_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 message(MKL_LIBRARIES: ${MKL_LIBRARIES})
 
-add_executable(ndt_matcher_example_node2 src/ndt_matcher_example_node.cpp)
-target_link_libraries(ndt_matcher_example_node2
+
+add_executable(ndt_matching_server src/ndt_matching_server.cpp)
+target_link_libraries(ndt_matching_server
   # ${rf_lib}
   ${catkin_LIBRARIES}
   ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
 )
-add_dependencies(ndt_matcher_example_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-add_executable(tf_visualizer_node2 src/tf_visualizer_node.cpp)
-target_link_libraries(tf_visualizer_node2
-  # ${rf_lib}
-  ${catkin_LIBRARIES}
-  ${MKL_LIBRARIES}
-  # ${TBB_LIBRARIES}
-)
-add_dependencies(tf_visualizer_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
+add_dependencies(ndt_matching_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_executable(a_click_receiver_node src/a_click_receiver_node.cpp)
 target_link_libraries(a_click_receiver_node
@@ -111,14 +102,14 @@ target_link_libraries(a_click_receiver_node
 )
 add_dependencies(a_click_receiver_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(read_imu_pose_data src/read_imu_pose_data.cpp)
-target_link_libraries(read_imu_pose_data
+add_executable(data_reader_server src/data_reader_server.cpp)
+target_link_libraries(data_reader_server
   # ${rf_lib}
   ${catkin_LIBRARIES}
   ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
 )
-add_dependencies(read_imu_pose_data ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(data_reader_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 add_executable(tf_broadcaster_node src/tf_broadcaster_node.cpp)
 target_link_libraries(tf_broadcaster_node

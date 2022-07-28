@@ -356,16 +356,13 @@ void publishResults(Graph &graph){
     transforminfos_pgo_xt1 = pose_to_transforminfo(pose_array.poses.at(3), 3);
     transforminfos_pgo_xt2 = pose_to_transforminfo(pose_array.poses.at(4), 4);
 
-
     pgo_pd0_pub.publish(transforminfos_pgo_pd0);
     pgo_pd1_pub.publish(transforminfos_pgo_pd1);
     pgo_xt32_0_pub.publish(transforminfos_pgo_xt0);
     pgo_xt32_1_pub.publish(transforminfos_pgo_xt1);
     pgo_xt32_2_pub.publish(transforminfos_pgo_xt2);
 
-
-
-    visualizeGraph(graph, edge_pub, pose_pub, pose_pc_pub, "pgo_antenna");
+    visualizeGraph(graph, edge_pub, pose_pub, pose_pc_pub, "antenna");
 
     //ROS_INFO("done request");
 }
@@ -450,13 +447,6 @@ int main(int argc, char **argv){
     edge_pub = nh.advertise<visualization_msgs::Marker>("graph_edge",1, true);
     pose_pub = nh.advertise<geometry_msgs::PoseArray>("graph_pose",1, true);
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc",1, true);
-
-
-    pgo_pd0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar64_0", 1);
-    pgo_pd1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_pandar64_1", 1);
-    pgo_xt32_0_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_0", 1);
-    pgo_xt32_1_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_1", 1);
-    pgo_xt32_2_pub = nh.advertise<pg_editor::TransformationInfo>("/pgo_xt32_2", 1);
 
 
     ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
