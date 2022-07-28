@@ -15,12 +15,15 @@ using namespace interactive_markers;
 
 using namespace pg_lib;
 
+#define COST_TYPE Cost::TYPE::SQUARED
+
 bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, Transform &T, ParamMatrix &H)
 {
     auto pose = graph.getVariable<Pose>(id, true);
     
     Factor::Ptr factor_abs = std::make_shared<AbsolutePoseFactor>(pose, T, H);
     factor_abs->setIsReliable(true);
+    factor_abs->setCost(COST_TYPE);
 
     if(!graph.addFactor(factor_abs))
     {
@@ -38,6 +41,7 @@ bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, pointcloud_t
     
     Factor::Ptr factor_abs = std::make_shared<AbsolutePoseFactor>(pose, sensor, T, H);
     factor_abs->setIsReliable(true);
+    factor_abs->setCost(COST_TYPE);
 
     if(!graph.addFactor(factor_abs))
     {
@@ -55,6 +59,7 @@ bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, poi
     Factor::Ptr factor = std::make_shared<RelativePose2Factor>(pose_ref, pose_in, T, H);
     
     factor->setIsReliable(true);
+    factor->setCost(COST_TYPE);
 
     if (!graph.addFactor(factor))
     {
@@ -75,6 +80,7 @@ bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, poi
     Factor::Ptr factor = std::make_shared<RelativePose2Factor>(pose_ref, pose_in, sensor_ref, sensor_in, T, H);
 
     factor->setIsReliable(true);
+    factor->setCost(COST_TYPE);
 
     if (!graph.addFactor(factor))
     {
@@ -90,6 +96,7 @@ int main(int argc, char **argv){
     ros::NodeHandle nh("~");
 
     Graph graph;
+    graph.setMaxIteration(5);
 
     ros::Duration(1.0).sleep();
 
@@ -117,7 +124,7 @@ int main(int argc, char **argv){
 
     Transform T_abs_1 = Transform::eye();
     for(std::size_t i=0; i<3; i++)
-        T_abs_1(i,3) = 1.0;
+        T_abs_1(i,3) = 1.01;
     ParamMatrix H_abs_1 = H_abs_0;
 
     pointcloud_tools::SensorFrameID abs_sensor_id1;
@@ -132,7 +139,7 @@ int main(int argc, char **argv){
     id2.time_step = 2;
     Transform T_abs_2 = Transform::eye();
     for(std::size_t i=0; i<3; i++)
-        T_abs_1(i,3) = 2.0;
+        T_abs_1(i,3) = 2.02;
     ParamMatrix H_abs_2 = H_abs_1;
 
     pointcloud_tools::SensorFrameID abs_sensor_id2;
@@ -144,11 +151,11 @@ int main(int argc, char **argv){
     ROS_INFO("Add 0th rel factor");
     Transform T_rel_0 = Transform::eye();
     for(std::size_t i=0; i<3; i++)
-        T_rel_0(i,3) = 1.1;
+        T_rel_0(i,3) = 0.99;
     ParamMatrix H_rel_0;
     for(std::size_t i=0; i<PARAM_DIM; i++)
         H_rel_0(i,i) = 0.1;
-    addRelativeFactor(graph, id1, id2, T_rel_0, H_rel_0); 
+    addRelativeFactor(graph, id0, id1, T_rel_0, H_rel_0); 
 
     // create relative 1th factor with sensor
     ROS_INFO("Add 1th rel factor");
@@ -161,13 +168,17 @@ int main(int argc, char **argv){
 
     Transform T_rel_1 = Transform::eye();
     for(std::size_t i=0; i<3; i++)
-        T_rel_1(i,3) = 1.1;
+        T_rel_1(i,3) = 0.98;
     ParamMatrix H_rel_1;
     for(std::size_t i=0; i<PARAM_DIM; i++)
         H_rel_1(i,i) = 0.1;
     addRelativeFactor(graph, id1, id2, rel_sensor_id1, rel_sensor_id2, T_rel_1, H_rel_1); 
 
-    graph.optimize();
+    // ROS_INFO("Optimization without sensor.");
+    // graph.optimize();
+
+    ROS_INFO("Optimization with sensor.");
+    graph.optimize(true);
 
     ros::spin();
 
