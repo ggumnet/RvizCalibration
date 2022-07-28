@@ -15,10 +15,19 @@ std_msgs::Int32MultiArray index_array;
 ros::Publisher pc_viz_index_pubs, arrow_edge_pubs, add_index_pubs, remove_index_pubs;
 
 std::map<std::string, tf::Vector3> id_to_origin_map;
+std::vector<std::string> frame_id_list;
 
 int index1, index2;
 
 bool index_pair_done = true, first_index_done = false;
+
+
+namespace initconfiguration{
+  int frame_num = 5;
+  void initFrameIDs(){
+    frame_id_list.insert(frame_id_list.end(), {"pandar64_0", "pandar64_1", "xt32_0", "xt32_1", "xt32_2"});
+  }
+}
 
 
 void resetIndex(){
@@ -184,13 +193,6 @@ int main(int argc, char **argv)
 
     while (ros::ok())
     {
-        //printVector3D(origin_list[0]);
-        //printVector3D(origin_list[1]);
-        //printVector3D(origin_list[2]);
-        //printVector3D(origin_list[3]);
-        //printVector3D(origin_list[4]);
-        //ROS_INFO("%d %d %d %d %d", index_array.data.at(0), index_array.data.at(1), index_array.data.at(2), index_array.data.at(3), index_array.data.at(4));
-
         try
         {
             ros::Duration(1.0).sleep();

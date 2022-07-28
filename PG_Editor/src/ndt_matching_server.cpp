@@ -22,15 +22,13 @@
 #include <transform_pose_conversion.h>
 #include <print_tool.h>
 
-
 std::string root_dirname_ = "/home/rideflux/Data/output/pc";
-
 
 //global maps
 std::map<std::pair<std::string, std::string>, Transform> id_id_transform_table;
 std::map<std::string, sensor_msgs::PointCloud2> id_pointcloud_map;
 std::map<std::string, Transform> id_default_transform_map;
-std::vector<std::string> frame_name_list;
+std::vector<std::string> frame_id_list;
 std::map<std::string, rideflux_msgs::SensorDataID> id_DataID_map;
 
 rideflux_msgs::SensorDataID data_id1, data_id2, data_id3, data_id4, data_id5;
@@ -40,7 +38,14 @@ sensor_msgs::PointCloud2 pc_pandar0, pc_pandar1, pc_xt0, pc_xt1, pc_xt2;
 ros::Subscriber relative_frame_sub;
 ros::Publisher relative_pose_pub;
 
-const int N = 5;
+
+namespace initconfiguration{
+  int frame_num;
+  void initFrameIDs(){
+    frame_id_list.insert(frame_id_list.end(), {"pandar64_0", "pandar64_1", "xt32_0", "xt32_1", "xt32_2"});
+    frame_num = frame_id_list.size();
+  }
+}
 
 struct MatchingOptions
 {
@@ -154,12 +159,7 @@ int main(int argc, char **argv){
 
     ros::ServiceServer matching_result_service = nh.advertiseService("/matching_result", matching_result_callback);
 
-    frame_name_list.push_back("pandar64_0");
-    frame_name_list.push_back("pandar64_1");
-    frame_name_list.push_back("xt32_0");
-    frame_name_list.push_back("xt32_1");
-    frame_name_list.push_back("xt32_2");
-
+    initconfiguration::initFrameIDs();
     while(ros::ok()){
         ros::Duration(0.1).sleep();
         ros::spinOnce();

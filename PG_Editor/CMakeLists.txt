@@ -51,6 +51,7 @@ add_service_files(
   FILES
   AddFactor.srv
   GetMatchingResult.srv
+  GetPointcloud.srv
 )
 
 generate_messages(
