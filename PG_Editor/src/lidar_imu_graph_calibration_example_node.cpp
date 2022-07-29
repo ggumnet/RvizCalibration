@@ -96,11 +96,12 @@ int main(int argc, char **argv){
     ros::NodeHandle nh("~");
 
     Graph graph;
-    graph.setMaxIteration(5);
+    graph.setMaxIteration(3);
 
     ros::Duration(1.0).sleep();
 
     // create 0th variable and absolute factor without sensor
+    //7
     ROS_INFO("Add 0th abs factor");
     pointcloud_tools::SensorDataID id0;
     id0.vehicle = "solati_v5_1";
@@ -117,6 +118,7 @@ int main(int argc, char **argv){
 
 
     // create 1th variable and absolute factor with sensor
+    //8
     ROS_INFO("Add 1th abs factor");
     pointcloud_tools::SensorDataID id1;
     id1 = id0;
@@ -133,6 +135,7 @@ int main(int argc, char **argv){
     addAbsFactor(graph, id1, abs_sensor_id1, T_abs_1, H_abs_1); 
 
     // create 2th variable and absolute factor with sensor
+    //9
     ROS_INFO("Add 2th abs factor");
     pointcloud_tools::SensorDataID id2;
     id2 = id1;
@@ -148,6 +151,7 @@ int main(int argc, char **argv){
     addAbsFactor(graph, id2, abs_sensor_id2, T_abs_2, H_abs_2); 
 
     // create relative 0th factor without sensor
+    //10
     ROS_INFO("Add 0th rel factor");
     Transform T_rel_0 = Transform::eye();
     for(std::size_t i=0; i<3; i++)
@@ -158,6 +162,7 @@ int main(int argc, char **argv){
     addRelativeFactor(graph, id0, id1, T_rel_0, H_rel_0); 
 
     // create relative 1th factor with sensor
+    //11
     ROS_INFO("Add 1th rel factor");
     pointcloud_tools::SensorFrameID rel_sensor_id1;
     rel_sensor_id1.vehicle = id1.vehicle;

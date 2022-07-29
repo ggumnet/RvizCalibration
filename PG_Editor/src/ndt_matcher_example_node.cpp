@@ -434,8 +434,6 @@ int main(int argc, char **argv){
     ros::Publisher pc_xt2_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_xt2", 1);
 
 
-    ros::Subscriber pc_viz_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/visualize_index_array", 1, indexArrayCallback);
-
 
     frame_name_list.push_back("pandar64_0");
     frame_name_list.push_back("pandar64_1");

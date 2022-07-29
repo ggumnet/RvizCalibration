@@ -9,6 +9,7 @@ Panels:
         - /pandar64_01
         - /xt32_21
         - /Axes1
+        - /Marker4
       Splitter Ratio: 0.5
     Tree Height: 325
   - Class: rviz/Selection
@@ -89,7 +90,7 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        antenna:
+        map:
           Value: true
         pandar64_0:
           Value: true
@@ -107,7 +108,7 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        antenna:
+        map:
           pandar64_0:
             {}
           pandar64_1:
@@ -379,7 +380,7 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        antenna:
+        map:
           Value: true
         pandar64_0:
           Value: true
@@ -397,7 +398,7 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        antenna:
+        map:
           pandar64_0:
             {}
           pandar64_1:
@@ -410,11 +411,19 @@ Visualization Manager:
             {}
       Update Interval: 0
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /edge_arrow
+      Name: Marker
+      Namespaces:
+        edges: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: antenna
+    Fixed Frame: map
     Frame Rate: 30
   Name: root
   Tools:
@@ -436,25 +445,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 223.73974609375
+      Distance: 11.229219436645508
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 14.175457000732422
-        Y: -8.675389289855957
-        Z: -2.4116028725984506e-5
+        X: 3.8067643642425537
+        Y: 3.2095463275909424
+        Z: -2.1194851797190495e-5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.4847969710826874
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 0.378572553396225
+      Yaw: 0.5885754227638245
     Saved: ~
 Window Geometry:
   Displays:

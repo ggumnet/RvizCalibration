@@ -2,17 +2,16 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/Int32MultiArray.h>
 #include <tf/transform_listener.h>
-#include <tf/transform_broadcaster.h>
 #include <map>
 #include <cmath>
 #include <visualization_msgs/Marker.h>
-#include <pg_editor/TransformationInfo.h>
+#include <pg_editor/TransformInfo.h>
 
-const int N=5;
+const int N = 5;
 tf::Vector3 origin_list[N];
 
 std_msgs::Int32MultiArray index_array;
-ros::Publisher pc_viz_index_pubs, arrow_edge_pubs, add_index_pubs, remove_index_pubs;
+ros::Publisher pc_publish_index_pubs, arrow_edge_pubs, add_index_pubs, remove_index_pubs;
 
 std::map<std::string, tf::Vector3> id_to_origin_map;
 std::vector<std::string> frame_id_list;
@@ -21,42 +20,56 @@ int index1, index2;
 
 bool index_pair_done = true, first_index_done = false;
 
-
-namespace initconfiguration{
-  int frame_num = 5;
-  void initFrameIDs(){
-    frame_id_list.insert(frame_id_list.end(), {"pandar64_0", "pandar64_1", "xt32_0", "xt32_1", "xt32_2"});
-  }
+namespace initconfiguration
+{
+    int frame_num = 5;
+    void initFrameIDs()
+    {
+        frame_id_list.insert(frame_id_list.end(), {"pandar64_0", "pandar64_1", "xt32_0", "xt32_1", "xt32_2"});
+    }
+    void initOriginMap()
+    {
+        for (int i = 0; i < initconfiguration::frame_num; i++)
+        {
+            id_to_origin_map.insert(std::make_pair(frame_id_list.at(i), tf::Vector3()));
+        }
+    }
 }
 
-
-void resetIndex(){
+void resetIndex()
+{
     index1 = -1;
     index2 = -1;
 }
 
-void printVector3D(tf::Vector3 vector){
+void printVector3D(tf::Vector3 vector)
+{
     ROS_INFO("xyz: %f %f %f", vector.getX(), vector.getY(), vector.getZ());
 }
 
-float get3dDistance(tf::Vector3 vector1, tf::Vector3 vector2){
-    return pow(pow(vector1.getX()-vector2.getX(),2) + pow(vector1.getY()-vector2.getY(),2) + pow(vector1.getZ()-vector2.getZ(),2), 0.5); 
-}
-
-void transformInfoCallback(const pg_editor::TransformationInfoConstPtr &msg)
+float get3dDistance(tf::Vector3 vector1, tf::Vector3 vector2)
 {
-    ROS_INFO("tf callback called");
-    tf::Vector3* origin;
-    origin = &id_to_origin_map[msg->frame_name];
-    origin->setX(msg->pose.position.x); origin->setY(msg->pose.position.y); origin->setZ(msg->pose.position.z);
+    return pow(pow(vector1.getX() - vector2.getX(), 2) + pow(vector1.getY() - vector2.getY(), 2) + pow(vector1.getZ() - vector2.getZ(), 2), 0.5);
 }
 
-int findClosestPoint(tf::Vector3 new_vector){
+void transformInfoCallback(const pg_editor::TransformInfoConstPtr &msg)
+{
+    tf::Vector3 *origin;
+    origin = &id_to_origin_map[msg->frame_name];
+    origin->setX(msg->pose.position.x);
+    origin->setY(msg->pose.position.y);
+    origin->setZ(msg->pose.position.z);
+}
+
+int findClosestPoint(tf::Vector3 new_vector)
+{
     float min = INT_MAX, temp;
     int index;
-    for(int i=0; i<N; i++){
-        temp = get3dDistance(new_vector, origin_list[i]);
-        if(temp<min) {
+    for (int i = 0; i < N; i++)
+    {
+        temp = get3dDistance(new_vector, id_to_origin_map.at(frame_id_list.at(i)));
+        if (temp < min)
+        {
             min = temp;
             index = i;
         }
@@ -64,7 +77,8 @@ int findClosestPoint(tf::Vector3 new_vector){
     return index;
 }
 
-geometry_msgs::Point vector3toPoint(tf::Vector3 vector3){
+geometry_msgs::Point vector3toPoint(tf::Vector3 vector3)
+{
     geometry_msgs::Point point;
     point.x = vector3.getX();
     point.y = vector3.getY();
@@ -72,9 +86,10 @@ geometry_msgs::Point vector3toPoint(tf::Vector3 vector3){
     return point;
 }
 
-void publishArrowEdge(int index1, int index2){
+void publishArrowEdge(int index1, int index2)
+{
     visualization_msgs::Marker marker;
-    marker.header.frame_id = "antenna";
+    marker.header.frame_id = "map";
     marker.header.stamp = ros::Time::now();
 
     marker.type = visualization_msgs::Marker::ARROW;
@@ -85,7 +100,7 @@ void publishArrowEdge(int index1, int index2){
     marker.points.push_back(geometry_msgs::Point());
     marker.points.push_back(geometry_msgs::Point());
 
-    tf::Vector3 origin1 = origin_list[index1], origin2 = origin_list[index2];
+    tf::Vector3 origin1 = id_to_origin_map[frame_id_list.at(index1)], origin2 = id_to_origin_map[frame_id_list.at(index2)];
     marker.points.at(0) = vector3toPoint(origin1);
     marker.points.at(1) = vector3toPoint(origin2);
 
@@ -100,35 +115,43 @@ void publishArrowEdge(int index1, int index2){
     arrow_edge_pubs.publish(marker);
 }
 
-//publish which pointcloud to publish and publish arrow marker
-void aClickCallback(const geometry_msgs::PointConstPtr &msg){
+// publish which pointcloud to publish and publish arrow marker
+void aClickCallback(const geometry_msgs::PointConstPtr &msg)
+{
+    ROS_INFO("clicked");
     int index = findClosestPoint(tf::Vector3(msg->x, msg->y, msg->z));
     ROS_INFO("closest index: %d", index);
 
     first_index_done = true;
 
-    for(int i=0; i<N; i++){
+    for (int i = 0; i < N; i++)
+    {
         index_array.data.at(i) = 0;
     }
-    if(index_pair_done){
+    if (index_pair_done)
+    {
         index_pair_done = false;
         index1 = index;
         index_array.data.at(index) = 1;
-        pc_viz_index_pubs.publish(index_array);
+        pc_publish_index_pubs.publish(index_array);
     }
-    else{
+    else
+    {
         index2 = index;
         index_array.data.at(index1) = 1;
         index_array.data.at(index2) = 1;
-        pc_viz_index_pubs.publish(index_array);
+        pc_publish_index_pubs.publish(index_array);
         publishArrowEdge(index1, index2);
         index_pair_done = true;
     }
 }
 
-void addMsgCallback(const std_msgs::EmptyConstPtr &msg){
-    if(!first_index_done) return ;
-    if(!index_pair_done) {
+void addMsgCallback(const std_msgs::EmptyConstPtr &msg)
+{
+    if (!first_index_done)
+        return;
+    if (!index_pair_done)
+    {
         ROS_INFO("return");
         return;
     }
@@ -137,15 +160,19 @@ void addMsgCallback(const std_msgs::EmptyConstPtr &msg){
     add_msg.data.push_back(index1);
     add_msg.data.push_back(index2);
     add_index_pubs.publish(add_msg);
-    for(int i=0; i<N; i++){
+    for (int i = 0; i < N; i++)
+    {
         index_array.data.at(i) = 1;
     }
-    pc_viz_index_pubs.publish(index_array);
+    pc_publish_index_pubs.publish(index_array);
 }
 
-void removeMsgCallback(const std_msgs::EmptyConstPtr &msg){
-    if(!first_index_done) return ;
-    if(!index_pair_done) {
+void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
+{
+    if (!first_index_done)
+        return;
+    if (!index_pair_done)
+    {
         ROS_INFO("return");
         return;
     }
@@ -154,10 +181,11 @@ void removeMsgCallback(const std_msgs::EmptyConstPtr &msg){
     remove_msg.data.push_back(index1);
     remove_msg.data.push_back(index2);
     remove_index_pubs.publish(remove_msg);
-    for(int i=0; i<N; i++){
+    for (int i = 0; i < N; i++)
+    {
         index_array.data.at(i) = 1;
     }
-    pc_viz_index_pubs.publish(index_array);
+    pc_publish_index_pubs.publish(index_array);
 }
 
 int main(int argc, char **argv)
@@ -165,31 +193,26 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "a_click_receiver_node");
     ros::NodeHandle nh;
 
-    tf::TransformBroadcaster broadcaster;
-
-    ros::Subscriber pgo_pd0_subs = nh.subscribe("/pandar0_transform_info", 1, transformInfoCallback);
-    ros::Subscriber pgo_pd1_subs = nh.subscribe("/pandar1_transform_info", 1, transformInfoCallback);
-    ros::Subscriber pgo_xt32_0_subs = nh.subscribe("/xt32_transform_info", 1, transformInfoCallback);
-    ros::Subscriber pgo_xt32_1_subs = nh.subscribe("/xt32_transform_info", 1, transformInfoCallback);
-    ros::Subscriber pgo_xt32_2_subs = nh.subscribe("/xt32_transform_info", 1, transformInfoCallback);
-
     ros::Subscriber a_click_subs = nh.subscribe("/rf_tool_a_click", 1, aClickCallback);
     ros::Subscriber add_msg_subs = nh.subscribe("/pg_editor_panel/add", 1, addMsgCallback);
     ros::Subscriber remove_msg_subs = nh.subscribe("/pg_editor_panel/remove", 1, removeMsgCallback);
+    ros::Subscriber transforminfo_subs = nh.subscribe("/transform_info", N, transformInfoCallback);
 
-    pc_viz_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("/visualize_index_array", 1);
+    pc_publish_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("/pc_publish_index_array", 1);
     arrow_edge_pubs = nh.advertise<visualization_msgs::Marker>("edge_arrow", 1);
-    add_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("add_edge_index_array",1, true);
-    remove_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("remove_edge_index_array",1, true);
+    add_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("add_edge_index_array", 1, true);
+    remove_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("remove_edge_index_array", 1, true);
 
-    for(int i=0; i<N; i++){
+    ROS_INFO("a click done");
+
+    for (int i = 0; i < N; i++)
+    {
         index_array.data.push_back(0);
     }
-    id_to_origin_map.insert(std::make_pair("pandar64_0", tf::Vector3()));
-    id_to_origin_map.insert(std::make_pair("pandar64_1", tf::Vector3()));
-    id_to_origin_map.insert(std::make_pair("xt32_0", tf::Vector3()));
-    id_to_origin_map.insert(std::make_pair("xt32_1", tf::Vector3()));
-    id_to_origin_map.insert(std::make_pair("xt32_2", tf::Vector3()));
+    initconfiguration::initFrameIDs();
+    initconfiguration::initOriginMap();
+
+    ROS_INFO("a click done");
 
     while (ros::ok())
     {

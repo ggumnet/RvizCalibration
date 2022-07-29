@@ -2,20 +2,17 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
-#include <pg_editor/TransformationInfo.h>
+#include <pg_editor/TransformInfo.h>
 #include <map>
 #include <fstream>
 #include <boost/tokenizer.hpp>
+#include <pg_lib/types.h>
 
-std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1";
-std::string file_name_ = root_dirname_+"/pc_pose.txt";
-
-
-typedef class transform{
-    public:
-        double rotation[9];
-        double translation[9];
-} TRANSFORM;
+namespace initconfiguration{
+    std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1/solati_v5_1/2022-07-14-11-46-25";
+    std::string file_name_ = root_dirname_+"/pc_pose.txt";
+    const int pose_num = 12; 
+}
 
 void parse(const std::string& str, const std::string delimiters){
 
@@ -28,46 +25,39 @@ void parse(const std::string& str, const std::string delimiters){
     //     n++;
     // }
     boost::tokenizer<boost::char_separator<char>>::iterator itr = tok.begin();
+    
+    std::vector<pg_lib::Transform> transforms_vec_;
+    pg_lib::Transform transform;
+    double ta[12]; //temp_array
 
-    
-    std::vector<TRANSFORM> transforms_vec_;
-    TRANSFORM transform;
-    
-    for(int i=0; i<12; i++){
+    for(int i=0; i<initconfiguration::pose_num; i++){
         ++itr;
         for(int j=0; j<12; j++){
-            if(j%4==3){
-                transform.translation[j/4] = stod(*itr);
-            }
-            else{
-                transform.rotation[j-j/4] = stod(*itr); 
-            }
+            ta[j] = stod(*itr); 
+            //ROS_WARN("%f", ta[j]);
             ++itr;
         }
-        transforms_vec_.push_back(transform);
+        transform.setRotation(cv::Matx<double, 3UL, 3UL>(ta[0], ta[1], ta[2], ta[4], ta[5], ta[6], ta[8], ta[9], ta[10]));
+        transform.setTranslation(cv::Matx31d(ta[3], ta[7], ta[11]));
         for(int j=0; j<21; j++){
             ++itr;
         }
+        transforms_vec_.push_back(transform);
     }
     // for(int i=0; i<12; i++){
-    //     for(int j=0; j<9; j++){
-    //         ROS_INFO("%f", transforms_vec_.at(i).rotation[j]);
-    //     }
-    //     for(int j=0; j<3; j++){
-    //         ROS_INFO("%f", transforms_vec_.at(i).translation[j]);
+    //     for(int j=0; j<12; j++){
+    //         ROS_WARN("%f", transforms_vec_.at(i)(j/4, j-(j/4)*4));
     //     }
     // }
+    ROS_WARN("read done");
 }
-
-
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "read_imu_pose_data");
     ros::NodeHandle nh;
     std::string read_string = "";
 
-    std::ifstream file(file_name_);
+    std::ifstream file(initconfiguration::file_name_);
 
     if (file.is_open()) {
         while (file) {
@@ -77,7 +67,7 @@ int main(int argc, char **argv)
         }  
         file.close();
     } else {
-        std::cout << "file open fail" << std::endl;
+        std::cout << "file open failed" << std::endl;
     }
 
     std::string delimiters = " \n\t";

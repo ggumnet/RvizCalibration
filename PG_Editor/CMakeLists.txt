@@ -44,7 +44,7 @@ add_message_files(
   FILES
   RelativeFramesInfo.msg
   RelativePoseInfo.msg
-  TransformationInfo.msg
+  TransformInfo.msg
 )
 
 add_service_files(
@@ -129,3 +129,12 @@ target_link_libraries(lidar_imu_graph_calibration_example_node
   # ${TBB_LIBRARIES}
 )
 add_dependencies(lidar_imu_graph_calibration_example_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+add_executable(read_imu_pose_data src/read_imu_pose_data.cpp)
+target_link_libraries(read_imu_pose_data
+  # ${rf_lib}
+  ${catkin_LIBRARIES}
+  ${MKL_LIBRARIES}
+  # ${TBB_LIBRARIES}
+)
+add_dependencies(read_imu_pose_data ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
