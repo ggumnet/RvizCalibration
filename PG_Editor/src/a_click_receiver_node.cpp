@@ -195,7 +195,7 @@ int main(int argc, char **argv)
     ros::Subscriber transforminfo_subs = nh.subscribe("/transform_info", frame_num, transformInfoCallback);
 
     pc_publish_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("/pc_publish_index_array", 1);
-    arrow_edge_pubs = nh.advertise<visualization_msgs::Marker>("edge_arrow", 1);
+    arrow_edge_pubs = nh.advertise<visualization_msgs::Marker>("/edge_arrow", 1);
     add_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("add_edge_index_array", 1, true);
     remove_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("remove_edge_index_array", 1, true);
 

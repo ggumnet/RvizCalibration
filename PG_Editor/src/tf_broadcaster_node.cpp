@@ -32,7 +32,5 @@ int main(int argc, char **argv)
         ROS_ERROR("%s", ex.what());
         ros::Duration(1.0).sleep();
     }
-
-    
     ros::spin();
 }

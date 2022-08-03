@@ -18,7 +18,6 @@
 #include <std_msgs/Int32MultiArray.h>
 #include <boost/tokenizer.hpp>
 
-
 using namespace visualization_msgs;
 using namespace interactive_markers;
 using namespace pg_lib;
@@ -26,91 +25,29 @@ using namespace pg_lib;
 #include <rot2quat.h>
 #include <transform_pose_conversion.h>
 #include <print_tool.h>
+#include "main_server.h"
+#include <read_configuration.h>
 
 #define ADD 0
 #define REMOVE 1
 #define COST_TYPE Cost::TYPE::SQUARED
-
-pointcloud_tools::SensorDataID init_id;
-boost::shared_ptr<InteractiveMarkerServer> server;
-
-
-ros::Publisher first_pub;
-ros::Publisher second_pub;
-
-ros::Publisher relative_frame_pub;
-ros::Subscriber relative_pose_sub;
-
-// marker and edges publisher
-ros::Publisher edge_pub;
-ros::Publisher pose_pub;
-ros::Publisher pose_pc_pub;
-ros::Publisher transforminfo_pub;
-
-std::vector<sensor_msgs::PointCloud2> pointcloud_vec_;
-std::vector<ros::Publisher> pc_publisher_vec_;
-std::vector<Transform> transform_vec_;
-std::vector<geometry_msgs::Pose> IMU_pose_vec_;
-
-std::map<int, pointcloud_tools::SensorDataID> time_step_to_sensorDataID_map;
-std::map<int, sensor_msgs::PointCloud2> time_step_to_pointcloud_map;
-std::map<int, Transform> time_step_to_init_transform_map;
-
-ros::ServiceClient pointcloud_client;
-ros::ServiceClient matching_result_client, imu_pose_result_client;
-
-pg_editor::GetNDTMatchingResult matching_result_service;
-
-Graph *graph_ptr;
 
 //Reference frame: "map" frame
 
 //TOSET
 namespace initconfiguration
 {
-    const int frame_num = 12;
-    std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
-    std::string config_filename_ = root_dirname_+"configuration.txt";
+    void initDirectoryConfiguration(){
+        frame_num = 12;
+        root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
+        config_filename_ = root_dirname_+"configuration.txt";
+    }
     // TOSET
     void initSensorInfo()
     {
         init_id.vehicle = "solati_v5_1";
         init_id.bag_time = "2022-07-14-11-46-25";
         init_id.sensor = "pandar64_0";
-    }
-    void parse_config_data(const std::string &str, const std::string delimiters)
-    {
-        boost::char_separator<char> sep(delimiters.c_str());
-        boost::tokenizer<boost::char_separator<char>> tok(str, sep);
-        boost::tokenizer<boost::char_separator<char>>::iterator itr = tok.begin();
-        
-        init_id.vehicle = *(itr++);
-        init_id.bag_time = *(itr++);
-        for(;itr!=tok.end(); itr++){
-            init_id.sensor = *itr;
-        }
-        ROS_WARN("config read done");
-    }
-    void readConfiguration()
-    {
-        std::string config_read_string = "";
-        std::ifstream config_file(config_filename_);
-        if (config_file.is_open())
-        {
-            while (config_file)
-            {
-                std::string s;
-                getline(config_file, s);
-                config_read_string += s + "\n";
-            }
-            config_file.close();
-        }
-        else
-        {
-            std::cout << "file open failed" << std::endl;
-        }
-        std::string delimiters = " \n\t";
-        parse_config_data(config_read_string, delimiters);
     }
     void initPointclouds()
     {
@@ -134,7 +71,7 @@ namespace initconfiguration
     void initPointcloudPublisherList(ros::NodeHandle &nh)
     {
         ros::Publisher publisher;
-        for (int i = 0; i < initconfiguration::frame_num; i++)
+        for (int i = 0; i < frame_num; i++)
         {
             publisher = nh.advertise<sensor_msgs::PointCloud2>("/pc_" + std::to_string(i), 1);
             pc_publisher_vec_.push_back(publisher);
@@ -149,10 +86,6 @@ namespace initconfiguration
         }
     }
 }
-bool do_optimize = false;
-int add_or_remove;
-bool pc_publish_or_not[initconfiguration::frame_num] = {true, true, true, true, true, true, true, true, true, true, true, true};
-
 namespace markerhandling
 {
     // make marker at the certain position
@@ -213,9 +146,6 @@ namespace markerhandling
         menu_handler.insert(pose_menu, "qw " + std::to_string(pose.orientation.w));
         return menu_handler;
     }
-}
-namespace graphhandling{
-    geometry_msgs::Pose pose_array[initconfiguration::frame_num];
 }
 
 geometry_msgs::Pose ref_pose, dest_pose;
@@ -422,9 +352,9 @@ void requestRelativeFactor(int source_time_step, int dest_time_step)
 
 void visualizePointclouds()
 {
-    for (int i = 0; i < initconfiguration::frame_num; i++)
+    for (int i = 0; i < frame_num; i++)
     {
-        if (pc_publish_or_not[i])
+        if (pc_publish_or_not.at(i))
         {
             pointcloud_vec_.at(i).header.stamp = ros::Time::now();
             pointcloud_vec_.at(i).header.frame_id = "sensor_frame"+std::to_string(i);
@@ -449,9 +379,8 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     auto sensor_T = sensor_var->getData();
 
     auto sensor_tf = poseToTfTransform(transformToPose(sensor_T));
-    for (int i = 0; i < initconfiguration::frame_num; i++)
+    for (int i = 0; i < frame_num; i++)
     {
-        //printPose(pose_array.poses.at(i));
         broadcaster.sendTransform(tf::StampedTransform(poseToTfTransform(pose_array.poses.at(i)), ros::Time::now(), "map", "frame"+std::to_string(i)));
         sensor_broadcaster.sendTransform(tf::StampedTransform(sensor_tf, ros::Time::now(), "frame"+std::to_string(i), "sensor_frame"+std::to_string(i)));
         pg_editor::TransformInfo transforminfo;
@@ -477,7 +406,7 @@ void addAbsFactorFromIMUPose(Graph &graph)
 
     for (std::size_t i = 0; i < PARAM_DIM; i++)
         H(i, i) = 0.00001;  
-    for(int i=0; i<initconfiguration::frame_num; i++){
+    for(int i=0; i<frame_num; i++){
         temp_id.time_step = i;
         T = poseToTransform(IMU_pose_vec_.at(i));
         addAbsFactorWithSensor(graph, temp_id, sensor_id, T, H);
@@ -488,9 +417,9 @@ void addIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 {
     ROS_INFO("Add factor");
     // publish "/relative_frame"
-    for (int i = 0; i < initconfiguration::frame_num; i++)
+    for (int i = 0; i < frame_num; i++)
     {
-        pc_publish_or_not[i] = true;
+        pc_publish_or_not.at(i) = true;
     }
     add_or_remove = ADD;
     requestRelativeFactor(msg->data.at(0), msg->data.at(1));
@@ -500,9 +429,9 @@ void removeIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 {
     ROS_INFO("Remove factor");
     // publish "/relative_frame"
-    for (int i = 0; i < initconfiguration::frame_num; i++)
+    for (int i = 0; i < frame_num; i++)
     {
-        pc_publish_or_not[i] = true;
+        pc_publish_or_not.at(i) = true;
     }
     add_or_remove = REMOVE;
     requestRelativeFactor(msg->data.at(0), msg->data.at(1));
@@ -510,9 +439,9 @@ void removeIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 
 void pcPublishIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 {
-    for (int i = 0; i < initconfiguration::frame_num; i++)
+    for (int i = 0; i < frame_num; i++)
     {
-        pc_publish_or_not[i] = msg->data.at(i) == 1;
+        pc_publish_or_not.at(i) = msg->data.at(i) == 1;
     }
 }
 void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_imu_pose_result_srv){
@@ -528,22 +457,23 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
     ros::NodeHandle nh("~");
-
     Graph graph;
     graph_ptr = &graph;
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
 
     //initconfiguration::initSensorInfo();
-    initconfiguration::readConfiguration();
+    initconfiguration::initDirectoryConfiguration();
+    for(int i=0; i<frame_num; i++){
+        pc_publish_or_not.push_back(true);
+    }
+    readConfiguration();
     initconfiguration::initPointclouds();
     initconfiguration::initPointcloudPublisherList(nh);
     initconfiguration::initSensorDataID();
-
-    first_pub = nh.advertise<visualization_msgs::Marker>("/first_marker", 1);
-    second_pub = nh.advertise<visualization_msgs::Marker>("/second_marker", 1);
-    edge_pub = nh.advertise<visualization_msgs::Marker>("graph_edge", 1, true);
-    pose_pub = nh.advertise<geometry_msgs::PoseArray>("graph_pose", 1, true);
-    pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc", 1, true);
+    
+    edge_pub = nh.advertise<visualization_msgs::Marker>("/graph_edge", 1, true);
+    pose_pub = nh.advertise<geometry_msgs::PoseArray>("/graph_pose", 1, true);
+    pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/graph_pose_pc", 1, true);
     transforminfo_pub = nh.advertise<pg_editor::TransformInfo>("/transform_info", 1, true);
 
     ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
