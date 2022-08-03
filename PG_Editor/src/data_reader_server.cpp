@@ -22,7 +22,7 @@ namespace initconfiguration{
     std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
     std::string vehicle_ = "solati_v5_1";
     std::string bag_time_ = "2022-07-14-11-46-25";
-    std::string data_dir_ = root_dirname_+"/"+vehicle_+"/"+bag_time_;
+    std::string data_dir_ = root_dirname_+vehicle_+"/"+bag_time_;
     std::string imu_file_name_ = data_dir_+"/pc_pose.txt";
     std::string sensor_name_ = "pandar64_0";
     std::vector<std::string> field_names{"x","y","z","intensity"};
@@ -63,7 +63,7 @@ void parse_imu_data(const std::string& str, const std::string delimiters){
 
 std::string createPCDirectoryPath(const rideflux_msgs::SensorDataID &msg) 
 {
-    return initconfiguration::root_dirname_ + "/" + msg.vehicle + "/" + msg.bag_time + "/" + msg.sensor;
+    return initconfiguration::root_dirname_ + msg.vehicle + "/" + msg.bag_time + "/" + msg.sensor;
 }
 
 std::string createPCFilePath(const rideflux_msgs::SensorDataID &msg)

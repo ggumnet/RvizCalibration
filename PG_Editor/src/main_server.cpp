@@ -16,6 +16,8 @@
 #include <pg_editor/GetImuPoseResult.h>
 #include <tf/transform_broadcaster.h>
 #include <std_msgs/Int32MultiArray.h>
+#include <boost/tokenizer.hpp>
+
 
 using namespace visualization_msgs;
 using namespace interactive_markers;
@@ -67,12 +69,48 @@ Graph *graph_ptr;
 namespace initconfiguration
 {
     const int frame_num = 12;
+    std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
+    std::string config_filename_ = root_dirname_+"configuration.txt";
     // TOSET
     void initSensorInfo()
     {
         init_id.vehicle = "solati_v5_1";
         init_id.bag_time = "2022-07-14-11-46-25";
         init_id.sensor = "pandar64_0";
+    }
+    void parse_config_data(const std::string &str, const std::string delimiters)
+    {
+        boost::char_separator<char> sep(delimiters.c_str());
+        boost::tokenizer<boost::char_separator<char>> tok(str, sep);
+        boost::tokenizer<boost::char_separator<char>>::iterator itr = tok.begin();
+        
+        init_id.vehicle = *(itr++);
+        init_id.bag_time = *(itr++);
+        for(;itr!=tok.end(); itr++){
+            init_id.sensor = *itr;
+        }
+        ROS_WARN("config read done");
+    }
+    void readConfiguration()
+    {
+        std::string config_read_string = "";
+        std::ifstream config_file(config_filename_);
+        if (config_file.is_open())
+        {
+            while (config_file)
+            {
+                std::string s;
+                getline(config_file, s);
+                config_read_string += s + "\n";
+            }
+            config_file.close();
+        }
+        else
+        {
+            std::cout << "file open failed" << std::endl;
+        }
+        std::string delimiters = " \n\t";
+        parse_config_data(config_read_string, delimiters);
     }
     void initPointclouds()
     {
@@ -111,7 +149,6 @@ namespace initconfiguration
         }
     }
 }
-
 bool do_optimize = false;
 int add_or_remove;
 bool pc_publish_or_not[initconfiguration::frame_num] = {true, true, true, true, true, true, true, true, true, true, true, true};
@@ -251,9 +288,10 @@ bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, Transform &T
 
 bool addAbsFactorWithSensor(Graph &graph, pointcloud_tools::SensorDataID &id, pointcloud_tools::SensorFrameID &sensor_id, Transform &T, ParamMatrix &H)
 {
-    auto pose = graph.getVariable<Pose>(id, true);
-    auto sensor = graph.getSensorVariable(sensor_id, true);
-    
+    Pose::Ptr pose = graph.getVariable<Pose>(id, true);
+    Pose::Ptr sensor = graph.getSensorVariable(sensor_id, true);
+
+
     Factor::Ptr factor_abs = std::make_shared<AbsolutePoseFactor>(pose, sensor, T, H);
     factor_abs->setIsReliable(true);
     factor_abs->setCost(COST_TYPE);
@@ -284,7 +322,7 @@ bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, poi
     return true;
 }
 
-bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, pointcloud_tools::SensorDataID &id_in, pointcloud_tools::SensorFrameID &sensor_id_ref, pointcloud_tools::SensorFrameID &sensor_id_in, Transform &T, ParamMatrix &H)
+bool addRelativeFactorWithSensor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, pointcloud_tools::SensorDataID &id_in, pointcloud_tools::SensorFrameID &sensor_id_ref, pointcloud_tools::SensorFrameID &sensor_id_in, Transform &T, ParamMatrix &H)
 {
     auto pose_ref = graph.getVariable<Pose>(id_ref, true);
     auto pose_in = graph.getVariable<Pose>(id_in, true);
@@ -339,16 +377,18 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
         for (std::size_t j = 0; j < DIM; ++j)
             T(i, j) = R[i][j];
     }
-
-    ROS_INFO("frame nums: %d %d", frame_num1, frame_num2);
     printTransform(T);
+
+    pointcloud_tools::SensorFrameID sensor_id;
+    sensor_id.frame_id = init_id.sensor;
+    sensor_id.vehicle = init_id.vehicle;
 
     ParamMatrix H;
     for (std::size_t i = 0; i < PARAM_DIM; i++)
         H(i, i) = 0.01;
 
     if (add_or_remove == ADD)
-        addRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
+        addRelativeFactorWithSensor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], sensor_id, sensor_id, T, H);
     else if (add_or_remove = REMOVE)
         removeRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
 
@@ -411,7 +451,7 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     auto sensor_tf = poseToTfTransform(transformToPose(sensor_T));
     for (int i = 0; i < initconfiguration::frame_num; i++)
     {
-        printPose(pose_array.poses.at(i));
+        //printPose(pose_array.poses.at(i));
         broadcaster.sendTransform(tf::StampedTransform(poseToTfTransform(pose_array.poses.at(i)), ros::Time::now(), "map", "frame"+std::to_string(i)));
         sensor_broadcaster.sendTransform(tf::StampedTransform(sensor_tf, ros::Time::now(), "frame"+std::to_string(i), "sensor_frame"+std::to_string(i)));
         pg_editor::TransformInfo transforminfo;
@@ -424,7 +464,7 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     visualizeGraph(graph, edge_pub, pose_pub, pose_pc_pub, "map");
     visualizePointclouds();
 }
-
+// arent you infected in COVID19?
 // TOSET
 void addAbsFactorFromIMUPose(Graph &graph)
 {
@@ -437,7 +477,7 @@ void addAbsFactorFromIMUPose(Graph &graph)
 
     for (std::size_t i = 0; i < PARAM_DIM; i++)
         H(i, i) = 0.00001;  
-    for(int i=0; i<12; i++){
+    for(int i=0; i<initconfiguration::frame_num; i++){
         temp_id.time_step = i;
         T = poseToTransform(IMU_pose_vec_.at(i));
         addAbsFactorWithSensor(graph, temp_id, sensor_id, T, H);
@@ -493,7 +533,8 @@ int main(int argc, char **argv)
     graph_ptr = &graph;
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
 
-    initconfiguration::initSensorInfo();
+    //initconfiguration::initSensorInfo();
+    initconfiguration::readConfiguration();
     initconfiguration::initPointclouds();
     initconfiguration::initPointcloudPublisherList(nh);
     initconfiguration::initSensorDataID();
@@ -518,10 +559,9 @@ int main(int argc, char **argv)
     saveImuPosesFromSrv(get_imu_pose_result_srv);
     addAbsFactorFromIMUPose(graph);
 
-    // tmp code
     pointcloud_tools::SensorFrameID lidar_sensor_id;
-    lidar_sensor_id.frame_id = "pandar64_0";
-    lidar_sensor_id.vehicle = "solati_v5_1";
+    lidar_sensor_id.frame_id = init_id.sensor;
+    lidar_sensor_id.vehicle = init_id.vehicle;
     graph.getSensorVariable(lidar_sensor_id, true);
 
     do_optimize = true;
