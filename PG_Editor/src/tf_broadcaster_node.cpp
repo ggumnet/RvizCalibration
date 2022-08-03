@@ -15,13 +15,13 @@ int main(int argc, char **argv)
         transformStamped.header.frame_id = "solati_v5_1/nov_imu";
         transformStamped.child_frame_id = "solati_v5_1/pandar64_0";
         transformStamped.header.stamp = ros::Time(0);
-        transformStamped.transform.translation.x = .2;
-        transformStamped.transform.translation.y = .2;
-        transformStamped.transform.translation.z = .2;
+        transformStamped.transform.translation.x = 3.846;
+        transformStamped.transform.translation.y = 0.93;
+        transformStamped.transform.translation.z = 1.685;
         transformStamped.transform.rotation.x = 0;
         transformStamped.transform.rotation.y = 0;
-        transformStamped.transform.rotation.z = 0;
-        transformStamped.transform.rotation.w = 1;
+        transformStamped.transform.rotation.z = 1;
+        transformStamped.transform.rotation.w = 0;
         
         broadcaster.sendTransform(transformStamped);
 

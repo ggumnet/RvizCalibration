@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pg_editor)
-
  
 add_compile_options(-std=c++14)
 
@@ -50,8 +49,9 @@ add_message_files(
 add_service_files(
   FILES
   AddFactor.srv
-  GetMatchingResult.srv
+  GetNDTMatchingResult.srv
   GetPointcloud.srv
+  GetImuPoseResult.srv
 )
 
 generate_messages(
@@ -130,11 +130,3 @@ target_link_libraries(lidar_imu_graph_calibration_example_node
 )
 add_dependencies(lidar_imu_graph_calibration_example_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(read_imu_pose_data src/read_imu_pose_data.cpp)
-target_link_libraries(read_imu_pose_data
-  # ${rf_lib}
-  ${catkin_LIBRARIES}
-  ${MKL_LIBRARIES}
-  # ${TBB_LIBRARIES}
-)
-add_dependencies(read_imu_pose_data ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

@@ -1,6 +1,8 @@
 #ifndef TRANSFORM_POSE_CONVERSION_H
 #define TRANSFORM_POSE_CONVERSION_H
 
+#include <rot2quat.h>
+
 geometry_msgs::Pose transformToPose(Transform transform){
 
     rf_geometry::SO<double, 3UL> rotation = transform.getRotation();

@@ -7,34 +7,31 @@
 #include <visualization_msgs/Marker.h>
 #include <pg_editor/TransformInfo.h>
 
-const int N = 5;
-tf::Vector3 origin_list[N];
+
 
 std_msgs::Int32MultiArray index_array;
 ros::Publisher pc_publish_index_pubs, arrow_edge_pubs, add_index_pubs, remove_index_pubs;
 
-std::map<std::string, tf::Vector3> id_to_origin_map;
-std::vector<std::string> frame_id_list;
+std::map<int, tf::Vector3> time_step_to_origin_map;
 
 int index1, index2;
 
 bool index_pair_done = true, first_index_done = false;
 
+
 namespace initconfiguration
 {
-    int frame_num = 5;
-    void initFrameIDs()
-    {
-        frame_id_list.insert(frame_id_list.end(), {"pandar64_0", "pandar64_1", "xt32_0", "xt32_1", "xt32_2"});
-    }
+    const int frame_num = 12;
     void initOriginMap()
     {
         for (int i = 0; i < initconfiguration::frame_num; i++)
         {
-            id_to_origin_map.insert(std::make_pair(frame_id_list.at(i), tf::Vector3()));
+            time_step_to_origin_map.insert(std::make_pair(i, tf::Vector3()));
         }
     }
 }
+using namespace initconfiguration;
+tf::Vector3 origin_list[frame_num];
 
 void resetIndex()
 {
@@ -55,7 +52,7 @@ float get3dDistance(tf::Vector3 vector1, tf::Vector3 vector2)
 void transformInfoCallback(const pg_editor::TransformInfoConstPtr &msg)
 {
     tf::Vector3 *origin;
-    origin = &id_to_origin_map[msg->frame_name];
+    origin = &time_step_to_origin_map[msg->frame_num];
     origin->setX(msg->pose.position.x);
     origin->setY(msg->pose.position.y);
     origin->setZ(msg->pose.position.z);
@@ -65,9 +62,9 @@ int findClosestPoint(tf::Vector3 new_vector)
 {
     float min = INT_MAX, temp;
     int index;
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < frame_num; i++)
     {
-        temp = get3dDistance(new_vector, id_to_origin_map.at(frame_id_list.at(i)));
+        temp = get3dDistance(new_vector, time_step_to_origin_map[i]);
         if (temp < min)
         {
             min = temp;
@@ -100,7 +97,7 @@ void publishArrowEdge(int index1, int index2)
     marker.points.push_back(geometry_msgs::Point());
     marker.points.push_back(geometry_msgs::Point());
 
-    tf::Vector3 origin1 = id_to_origin_map[frame_id_list.at(index1)], origin2 = id_to_origin_map[frame_id_list.at(index2)];
+    tf::Vector3 origin1 = time_step_to_origin_map[index1], origin2 = time_step_to_origin_map[index2];
     marker.points.at(0) = vector3toPoint(origin1);
     marker.points.at(1) = vector3toPoint(origin2);
 
@@ -124,7 +121,7 @@ void aClickCallback(const geometry_msgs::PointConstPtr &msg)
 
     first_index_done = true;
 
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < frame_num; i++)
     {
         index_array.data.at(i) = 0;
     }
@@ -160,7 +157,7 @@ void addMsgCallback(const std_msgs::EmptyConstPtr &msg)
     add_msg.data.push_back(index1);
     add_msg.data.push_back(index2);
     add_index_pubs.publish(add_msg);
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < frame_num; i++)
     {
         index_array.data.at(i) = 1;
     }
@@ -181,7 +178,7 @@ void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
     remove_msg.data.push_back(index1);
     remove_msg.data.push_back(index2);
     remove_index_pubs.publish(remove_msg);
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < frame_num; i++)
     {
         index_array.data.at(i) = 1;
     }
@@ -192,11 +189,10 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "a_click_receiver_node");
     ros::NodeHandle nh;
-
     ros::Subscriber a_click_subs = nh.subscribe("/rf_tool_a_click", 1, aClickCallback);
     ros::Subscriber add_msg_subs = nh.subscribe("/pg_editor_panel/add", 1, addMsgCallback);
     ros::Subscriber remove_msg_subs = nh.subscribe("/pg_editor_panel/remove", 1, removeMsgCallback);
-    ros::Subscriber transforminfo_subs = nh.subscribe("/transform_info", N, transformInfoCallback);
+    ros::Subscriber transforminfo_subs = nh.subscribe("/transform_info", frame_num, transformInfoCallback);
 
     pc_publish_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("/pc_publish_index_array", 1);
     arrow_edge_pubs = nh.advertise<visualization_msgs::Marker>("edge_arrow", 1);
@@ -205,11 +201,10 @@ int main(int argc, char **argv)
 
     ROS_INFO("a click done");
 
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < frame_num; i++)
     {
         index_array.data.push_back(0);
     }
-    initconfiguration::initFrameIDs();
     initconfiguration::initOriginMap();
 
     ROS_INFO("a click done");

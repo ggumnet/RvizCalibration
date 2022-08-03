@@ -1,3 +1,7 @@
+//Experimental Node
+//Not actually executed
+
+
 #include <ros/ros.h>
 #include <pg_lib/graph.h>
 
@@ -49,7 +53,7 @@ std::vector<std::string> frame_id_list;
 
 pg_editor::TransformationInfo transforminfos_pgo_xt0, transforminfos_pgo_xt1, transforminfos_pgo_xt2, transforminfos_pgo_pd0, transforminfos_pgo_pd1;
 
-std::map<std::string, pointcloud_tools::SensorDataID> id_to_sensorDataID_map;
+std::map<std::string, pointcloud_tools::SensorDataID> time_step_to_sensorDataID_map;
 
 //std::shared_ptr<Graph> graph_ptr;
 Graph* graph_ptr;
@@ -312,8 +316,8 @@ void relativePoseCallback(const pg_editor::RelativePoseInfoConstPtr &msg)
 
     //Graph graph = *graph_ptr;
     
-    if(add_or_remove == ADD) addRelativeFactor(*graph_ptr, id_to_sensorDataID_map[msg->source_frame], id_to_sensorDataID_map[msg->dest_frame], T, H);
-    else if(add_or_remove = REMOVE) removeRelativeFactor(*graph_ptr, id_to_sensorDataID_map[msg->source_frame], id_to_sensorDataID_map[msg->dest_frame], T, H);
+    if(add_or_remove == ADD) addRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[msg->source_frame], time_step_to_sensorDataID_map[msg->dest_frame], T, H);
+    else if(add_or_remove = REMOVE) removeRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[msg->source_frame], time_step_to_sensorDataID_map[msg->dest_frame], T, H);
 
     if(do_optimize){
         optimizeGraph(*graph_ptr);
@@ -395,16 +399,16 @@ void initSensorDataID(){
     id.vehicle = "solati_v5_1";
 
     id.sensor = "pandar64_0";
-    id_to_sensorDataID_map.insert(std::make_pair("pandar64_0",id));
+    time_step_to_sensorDataID_map.insert(std::make_pair("pandar64_0",id));
     id.sensor = "pandar64_1";
-    id_to_sensorDataID_map.insert(std::make_pair("pandar64_1",id));
+    time_step_to_sensorDataID_map.insert(std::make_pair("pandar64_1",id));
 
     id.sensor = "xt32_0";
-    id_to_sensorDataID_map.insert(std::make_pair("xt32_0",id));
+    time_step_to_sensorDataID_map.insert(std::make_pair("xt32_0",id));
     id.sensor = "xt32_1";
-    id_to_sensorDataID_map.insert(std::make_pair("xt32_1",id));
+    time_step_to_sensorDataID_map.insert(std::make_pair("xt32_1",id));
     id.sensor = "xt32_2";
-    id_to_sensorDataID_map.insert(std::make_pair("xt32_2",id));
+    time_step_to_sensorDataID_map.insert(std::make_pair("xt32_2",id));
 }
 
 void addIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr& msg){
@@ -448,9 +452,10 @@ int main(int argc, char **argv){
     pose_pub = nh.advertise<geometry_msgs::PoseArray>("graph_pose",1, true);
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("graph_pose_pc",1, true);
 
-
     ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
     ros::Subscriber remove_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/remove_edge_index_array", 10, removeIndexArrayCallback);
+
+    
 
     
     ros::Duration(3).sleep();

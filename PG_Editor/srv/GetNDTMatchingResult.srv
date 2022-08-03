@@ -1,5 +1,7 @@
 sensor_msgs/PointCloud2 pointcloud1
 sensor_msgs/PointCloud2 pointcloud2
+int64 time_step1
+int64 time_step2
 geometry_msgs/Pose initial_pose
 ---
 geometry_msgs/Pose result_pose

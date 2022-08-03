@@ -12,7 +12,8 @@
 #include <pg_editor/RelativeFramesInfo.h>
 #include <pg_editor/RelativePoseInfo.h>
 #include <pg_editor/GetPointcloud.h>
-#include <pg_editor/GetMatchingResult.h>
+#include <pg_editor/GetNDTMatchingResult.h>
+#include <pg_editor/GetImuPoseResult.h>
 #include <tf/transform_broadcaster.h>
 #include <std_msgs/Int32MultiArray.h>
 
@@ -26,12 +27,11 @@ using namespace pg_lib;
 
 #define ADD 0
 #define REMOVE 1
+#define COST_TYPE Cost::TYPE::SQUARED
 
-pointcloud_tools::SensorDataID id;
+pointcloud_tools::SensorDataID init_id;
 boost::shared_ptr<InteractiveMarkerServer> server;
 
-const int N = 5;
-bool pc_publish_or_not[N] = {true, true, true, true, true};
 
 ros::Publisher first_pub;
 ros::Publisher second_pub;
@@ -45,105 +45,77 @@ ros::Publisher pose_pub;
 ros::Publisher pose_pc_pub;
 ros::Publisher transforminfo_pub;
 
-std::vector<std::string> frame_id_list;
-std::vector<sensor_msgs::PointCloud2> pointcloud_list;
-std::vector<ros::Publisher> pc_publisher_list;
+std::vector<sensor_msgs::PointCloud2> pointcloud_vec_;
+std::vector<ros::Publisher> pc_publisher_vec_;
+std::vector<Transform> transform_vec_;
+std::vector<geometry_msgs::Pose> IMU_pose_vec_;
 
-std::map<std::string, pointcloud_tools::SensorDataID> id_to_sensorDataID_map;
-std::map<std::string, sensor_msgs::PointCloud2> id_to_pointcloud_map;
-std::map<std::string, Transform> id_to_init_transform_map;
+std::map<int, pointcloud_tools::SensorDataID> time_step_to_sensorDataID_map;
+std::map<int, sensor_msgs::PointCloud2> time_step_to_pointcloud_map;
+std::map<int, Transform> time_step_to_init_transform_map;
 
 ros::ServiceClient pointcloud_client;
-ros::ServiceClient matching_result_client;
+ros::ServiceClient matching_result_client, imu_pose_result_client;
 
-pg_editor::GetMatchingResult matching_result_service;
+pg_editor::GetNDTMatchingResult matching_result_service;
 
 Graph *graph_ptr;
 
-bool do_optimize = false;
-int add_or_remove;
-
 //Reference frame: "map" frame
 
+//TOSET
 namespace initconfiguration
 {
-    int frame_num;
+    const int frame_num = 12;
     // TOSET
-    void initPointcloudIdAndFrameIds()
+    void initSensorInfo()
     {
-        id.vehicle = "solati_v5_1";
-        id.bag_time = "2022-07-14-11-46-25";
-
-        frame_id_list.insert(frame_id_list.end(), {"pandar64_0", "pandar64_1", "xt32_0", "xt32_1", "xt32_2"});
-        frame_num = frame_id_list.size();
+        init_id.vehicle = "solati_v5_1";
+        init_id.bag_time = "2022-07-14-11-46-25";
+        init_id.sensor = "pandar64_0";
     }
     void initPointclouds()
     {
         pg_editor::GetPointcloud pointcloud_service;
-        for (int i = 0; i < N; i++)
+        rideflux_msgs::SensorDataID data_id;
+        data_id.vehicle = init_id.vehicle;
+        data_id.sensor = init_id.sensor;
+        data_id.bag_time = init_id.bag_time;
+        for (int i = 0; i < frame_num; i++)
         {
-            pointcloud_service.request.pointcloud_name = frame_id_list.at(i);
+            data_id.time_step = i;
+            pointcloud_service.request.data_id = data_id;
             if (pointcloud_client.call(pointcloud_service))
             {
                 auto pc = pointcloud_service.response.pointcloud;
                 ROS_INFO("frame_id, width: %s, %d", pc.header.frame_id.c_str(), pc.width);
-                pointcloud_list.push_back(pc);
-                id_to_pointcloud_map.insert(std::make_pair(pointcloud_service.request.pointcloud_name, pointcloud_service.response.pointcloud));
+                pointcloud_vec_.push_back(pc);
             }
         }
     }
-    // TOSET
-    // Map of initial guess to each frames
-    void initTransformMap()
-    {
-        Transform transform;
-        transform.setRotation(cv::Matx<double, 3UL, 3UL>(-1, 0, 0, 0, -1, 0, 0, 0, 1));
-        transform.setTranslation(cv::Matx31d(3.672, 0.930, -0.369));
-        id_to_init_transform_map.insert(std::make_pair("pandar64_0", transform));
-
-        transform.setRotation(cv::Matx<double, 3UL, 3UL>(1, 0, 0, 0, 1, 0, 0, 0, 1));
-        transform.setTranslation(cv::Matx31d(3.672, -0.925, -0.369));
-        id_to_init_transform_map.insert(std::make_pair("pandar64_1", transform));
-
-        transform.setRotation(cv::Matx<double, 3UL, 3UL>(-1, 0, 0, 0, -1, 0, 0, 0, 1));
-        transform.setTranslation(cv::Matx31d(4.517, 1.022, -1.589));
-        id_to_init_transform_map.insert(std::make_pair("xt32_0", transform));
-
-        transform.setRotation(cv::Matx<double, 3UL, 3UL>(1, 0, 0, 0, 1, 0, 0, 0, 1));
-        transform.setTranslation(cv::Matx31d(4.517, -1.042, -1.589));
-        id_to_init_transform_map.insert(std::make_pair("xt32_1", transform));
-
-        transform.setRotation(cv::Matx<double, 3UL, 3UL>(0, 1, 0, -1, 0, 0, 0, 0, 1));
-        transform.setTranslation(cv::Matx31d(-0.631, 0, -2.249));
-        id_to_init_transform_map.insert(std::make_pair("xt32_2", transform));
-    }
-    //transforminfo: pose + frame name
-    // void initTransformInfoMap(ros::NodeHandle &nh){
-    //     ros::Publisher publisher;
-    //     for (int i = 0; i < initconfiguration::frame_num; i++)
-    //     {
-    //         publisher = nh.advertise<pg_editor::TransformInfo>("/transforminfo_" + frame_id_list.at(i), 1);
-    //         transforminfo_publisher_list.push_back(publisher);
-    //     }
-    // }
     void initPointcloudPublisherList(ros::NodeHandle &nh)
     {
         ros::Publisher publisher;
         for (int i = 0; i < initconfiguration::frame_num; i++)
         {
-            publisher = nh.advertise<sensor_msgs::PointCloud2>("/pc_" + frame_id_list.at(i), 1);
-            pc_publisher_list.push_back(publisher);
+            publisher = nh.advertise<sensor_msgs::PointCloud2>("/pc_" + std::to_string(i), 1);
+            pc_publisher_vec_.push_back(publisher);
         }
     }
     void initSensorDataID()
     {
-        pointcloud_tools::SensorDataID temp_id = id;
+        pointcloud_tools::SensorDataID temp_id = init_id;
         for(int i=0; i<frame_num; i++){
-            temp_id.sensor = frame_id_list.at(i);
-            id_to_sensorDataID_map.insert(std::make_pair(frame_id_list.at(i), temp_id));
+            temp_id.time_step = i;
+            time_step_to_sensorDataID_map.insert(std::make_pair(i, temp_id));
         }
     }
 }
+
+bool do_optimize = false;
+int add_or_remove;
+bool pc_publish_or_not[initconfiguration::frame_num] = {true, true, true, true, true, true, true, true, true, true, true, true};
+
 namespace markerhandling
 {
     // make marker at the certain position
@@ -205,6 +177,9 @@ namespace markerhandling
         return menu_handler;
     }
 }
+namespace graphhandling{
+    geometry_msgs::Pose pose_array[initconfiguration::frame_num];
+}
 
 geometry_msgs::Pose ref_pose, dest_pose;
 
@@ -259,16 +234,31 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
 
 bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, Transform &T, ParamMatrix &H)
 {
-    pointcloud_tools::SensorFrameID frame_id;
-    frame_id.frame_id = id.sensor;
-    frame_id.vehicle = id.vehicle;
     auto pose = graph.getVariable<Pose>(id, true);
-    // auto sensor = graph.getSensorVariable(frame_id, true);
-
+    
     Factor::Ptr factor_abs = std::make_shared<AbsolutePoseFactor>(pose, T, H);
     factor_abs->setIsReliable(true);
+    factor_abs->setCost(COST_TYPE);
 
-    if (!graph.addFactor(factor_abs))
+    if(!graph.addFactor(factor_abs))
+    {
+        ROS_ERROR("Failed to add factor_abs. %s", toString(id).c_str());
+        return false;
+    }
+    return true;
+}
+
+
+bool addAbsFactorWithSensor(Graph &graph, pointcloud_tools::SensorDataID &id, pointcloud_tools::SensorFrameID &sensor_id, Transform &T, ParamMatrix &H)
+{
+    auto pose = graph.getVariable<Pose>(id, true);
+    auto sensor = graph.getSensorVariable(sensor_id, true);
+    
+    Factor::Ptr factor_abs = std::make_shared<AbsolutePoseFactor>(pose, sensor, T, H);
+    factor_abs->setIsReliable(true);
+    factor_abs->setCost(COST_TYPE);
+
+    if(!graph.addFactor(factor_abs))
     {
         ROS_ERROR("Failed to add factor_abs. %s", toString(id).c_str());
         return false;
@@ -282,7 +272,30 @@ bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, poi
     auto pose_in = graph.getVariable<Pose>(id_in, true);
 
     Factor::Ptr factor = std::make_shared<RelativePose2Factor>(pose_ref, pose_in, T, H);
+    
     factor->setIsReliable(true);
+    factor->setCost(COST_TYPE);
+
+    if (!graph.addFactor(factor))
+    {
+        ROS_ERROR("Failed to add factor between %s and %s poses.", toString(id_ref).c_str(), toString(id_in).c_str());
+        return false;
+    }
+    return true;
+}
+
+bool addRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, pointcloud_tools::SensorDataID &id_in, pointcloud_tools::SensorFrameID &sensor_id_ref, pointcloud_tools::SensorFrameID &sensor_id_in, Transform &T, ParamMatrix &H)
+{
+    auto pose_ref = graph.getVariable<Pose>(id_ref, true);
+    auto pose_in = graph.getVariable<Pose>(id_in, true);
+
+    auto sensor_ref = graph.getSensorVariable(sensor_id_ref, true);
+    auto sensor_in = graph.getSensorVariable(sensor_id_in, true);
+
+    Factor::Ptr factor = std::make_shared<RelativePose2Factor>(pose_ref, pose_in, sensor_ref, sensor_in, T, H);
+
+    factor->setIsReliable(true);
+    factor->setCost(COST_TYPE);
 
     if (!graph.addFactor(factor))
     {
@@ -305,13 +318,16 @@ void removeRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, 
 }
 
 // get ndt result pose and add it to graph
-void responseRelativeFactor(pg_editor::GetMatchingResult matching_result_service)
+void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_service)
 {
     Transform T;
     geometry_msgs::Pose pose = matching_result_service.response.result_pose;
-    std::string frame1 = matching_result_service.request.pointcloud1.header.frame_id;
-    std::string frame2 = matching_result_service.request.pointcloud2.header.frame_id;
+    // std::string frame1 = matching_result_service.request.pointcloud1.header.frame_id;
+    // std::string frame2 = matching_result_service.request.pointcloud2.header.frame_id;
 
+    //TODO
+    int frame_num1 = matching_result_service.request.time_step1;
+    int frame_num2 = matching_result_service.request.time_step2;
     T(0, 3) = pose.position.x;
     T(1, 3) = pose.position.y;
     T(2, 3) = pose.position.z;
@@ -324,7 +340,7 @@ void responseRelativeFactor(pg_editor::GetMatchingResult matching_result_service
             T(i, j) = R[i][j];
     }
 
-    ROS_INFO("frames: %s %s", frame1.c_str(), frame2.c_str());
+    ROS_INFO("frame nums: %d %d", frame_num1, frame_num2);
     printTransform(T);
 
     ParamMatrix H;
@@ -332,9 +348,9 @@ void responseRelativeFactor(pg_editor::GetMatchingResult matching_result_service
         H(i, i) = 0.01;
 
     if (add_or_remove == ADD)
-        addRelativeFactor(*graph_ptr, id_to_sensorDataID_map[frame1], id_to_sensorDataID_map[frame2], T, H);
+        addRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
     else if (add_or_remove = REMOVE)
-        removeRelativeFactor(*graph_ptr, id_to_sensorDataID_map[frame1], id_to_sensorDataID_map[frame2], T, H);
+        removeRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
 
     if (do_optimize)
     {
@@ -344,16 +360,18 @@ void responseRelativeFactor(pg_editor::GetMatchingResult matching_result_service
 }
 
 // Request Relative Pose To NDT_matching node
-void requestRelativeFactor(std::string source_frame, std::string dest_frame)
+void requestRelativeFactor(int source_time_step, int dest_time_step)
 {
-    pg_editor::GetMatchingResult matching_result_service;
+    pg_editor::GetNDTMatchingResult matching_result_service;
     Transform T_source, T_dest;
 
-    T_source = id_to_init_transform_map[source_frame];
-    T_dest = id_to_init_transform_map[dest_frame];
+    T_source = time_step_to_init_transform_map[source_time_step];
+    T_dest = time_step_to_init_transform_map[dest_time_step];
 
-    matching_result_service.request.pointcloud1 = id_to_pointcloud_map[source_frame];
-    matching_result_service.request.pointcloud2 = id_to_pointcloud_map[dest_frame];
+    matching_result_service.request.pointcloud1 = time_step_to_pointcloud_map[source_time_step];
+    matching_result_service.request.pointcloud2 = time_step_to_pointcloud_map[dest_time_step];
+    matching_result_service.request.time_step1 = source_time_step;
+    matching_result_service.request.time_step2 = dest_time_step;
     matching_result_service.request.initial_pose = transformToPose(T_source.inv() * T_dest);
 
     if (matching_result_client.call(matching_result_service))
@@ -364,29 +382,41 @@ void requestRelativeFactor(std::string source_frame, std::string dest_frame)
 
 void visualizePointclouds()
 {
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < initconfiguration::frame_num; i++)
     {
         if (pc_publish_or_not[i])
         {
-            pointcloud_list.at(i).header.stamp = ros::Time::now();
-            pc_publisher_list.at(i).publish(pointcloud_list.at(i));
+            pointcloud_vec_.at(i).header.stamp = ros::Time::now();
+            pointcloud_vec_.at(i).header.frame_id = "sensor_frame"+std::to_string(i);
+            pc_publisher_vec_.at(i).publish(pointcloud_vec_.at(i));
         }
     }
 }
 
-void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster)
+void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::TransformBroadcaster &sensor_broadcaster)
 {
     visualization_msgs::Marker marker;
     geometry_msgs::PoseArray pose_array;
     std::vector<std::size_t> indices;
     graph.createMsgToVisualize(marker, pose_array, indices);
 
-    for (int i = 0; i < N; i++)
+    pointcloud_tools::SensorFrameID sensor_id;
+    sensor_id.frame_id = "pandar64_0";
+    sensor_id.vehicle = "solati_v5_1";
+    auto sensor_var = graph.getSensorVariable(sensor_id);
+    // if(*sensor_var == *Pose::Ptr())
+    //     ROS_WARN("Can not find %s/%s sensor variable in graph",sensor_id.vehicle.c_str(), sensor_id.frame_id.c_str());
+    auto sensor_T = sensor_var->getData();
+
+    auto sensor_tf = poseToTfTransform(transformToPose(sensor_T));
+    for (int i = 0; i < initconfiguration::frame_num; i++)
     {
-        broadcaster.sendTransform(tf::StampedTransform(poseToTfTransform(pose_array.poses.at(i)), ros::Time::now(), "map", frame_id_list.at(i)));
+        printPose(pose_array.poses.at(i));
+        broadcaster.sendTransform(tf::StampedTransform(poseToTfTransform(pose_array.poses.at(i)), ros::Time::now(), "map", "frame"+std::to_string(i)));
+        sensor_broadcaster.sendTransform(tf::StampedTransform(sensor_tf, ros::Time::now(), "frame"+std::to_string(i), "sensor_frame"+std::to_string(i)));
         pg_editor::TransformInfo transforminfo;
         transforminfo.pose = pose_array.poses.at(i);
-        transforminfo.frame_name = frame_id_list.at(i);
+        transforminfo.frame_num = i;
         transforminfo_pub.publish(transforminfo);
     }
     ros::spinOnce();
@@ -396,57 +426,64 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster)
 }
 
 // TOSET
-void initGraph(Graph &graph)
+void addAbsFactorFromIMUPose(Graph &graph)
 {
-    pointcloud_tools::SensorDataID temp_id = id;
-    temp_id.sensor = "pandar64_0";
-    temp_id.time_step = 0;
-
-    Transform T(Transform::eye());
+    pointcloud_tools::SensorDataID temp_id =init_id;
+    pointcloud_tools::SensorFrameID sensor_id;
+    sensor_id.frame_id = "nov_imu";
+    sensor_id.vehicle = "solati_v5_1";
+    Transform T;
     ParamMatrix H(ParamMatrix::eye());
+
     for (std::size_t i = 0; i < PARAM_DIM; i++)
-        H(i, i) = 0.00001;
-
-    addAbsFactor(graph, temp_id, T, H);
-
-    requestRelativeFactor("pandar64_0", "pandar64_1");
-    requestRelativeFactor("pandar64_0", "xt32_0");
-    requestRelativeFactor("pandar64_1", "xt32_1");
-    requestRelativeFactor("xt32_1", "xt32_2");
+        H(i, i) = 0.00001;  
+    for(int i=0; i<12; i++){
+        temp_id.time_step = i;
+        T = poseToTransform(IMU_pose_vec_.at(i));
+        addAbsFactorWithSensor(graph, temp_id, sensor_id, T, H);
+    }
 }
 
 void addIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 {
     ROS_INFO("Add factor");
     // publish "/relative_frame"
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < initconfiguration::frame_num; i++)
     {
         pc_publish_or_not[i] = true;
     }
     add_or_remove = ADD;
-    requestRelativeFactor(frame_id_list.at(msg->data.at(0)), frame_id_list.at(msg->data.at(1)));
+    requestRelativeFactor(msg->data.at(0), msg->data.at(1));
 }
 
 void removeIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 {
     ROS_INFO("Remove factor");
     // publish "/relative_frame"
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < initconfiguration::frame_num; i++)
     {
         pc_publish_or_not[i] = true;
     }
     add_or_remove = REMOVE;
-    requestRelativeFactor(frame_id_list.at(msg->data.at(0)), frame_id_list.at(msg->data.at(1)));
+    requestRelativeFactor(msg->data.at(0), msg->data.at(1));
 }
 
 void pcPublishIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 {
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < initconfiguration::frame_num; i++)
     {
         pc_publish_or_not[i] = msg->data.at(i) == 1;
     }
 }
-
+void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_imu_pose_result_srv){
+    geometry_msgs::Pose pose;
+    ROS_INFO("%d", get_imu_pose_result_srv.response.pose_array.poses.size());
+    for(int i=0; i<get_imu_pose_result_srv.response.pose_array.poses.size(); i++){
+        pose = get_imu_pose_result_srv.response.pose_array.poses.at(i);
+        transform_vec_.push_back(poseToTransform(pose));
+        IMU_pose_vec_.push_back(pose);
+    }
+}
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
@@ -456,9 +493,8 @@ int main(int argc, char **argv)
     graph_ptr = &graph;
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
 
-    initconfiguration::initPointcloudIdAndFrameIds();
+    initconfiguration::initSensorInfo();
     initconfiguration::initPointclouds();
-    initconfiguration::initTransformMap();
     initconfiguration::initPointcloudPublisherList(nh);
     initconfiguration::initSensorDataID();
 
@@ -473,9 +509,20 @@ int main(int argc, char **argv)
     ros::Subscriber remove_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/remove_edge_index_array", 10, removeIndexArrayCallback);
     ros::Subscriber pc_publish_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/pc_publish_index_array", 1, pcPublishIndexArrayCallback);
 
-    matching_result_client = nh.serviceClient<pg_editor::GetMatchingResult>("/matching_result");
+    matching_result_client = nh.serviceClient<pg_editor::GetNDTMatchingResult>("/matching_result");
+    imu_pose_result_client = nh.serviceClient<pg_editor::GetImuPoseResult>("/imu_pose_result");
 
-    initGraph(graph);
+    pg_editor::GetImuPoseResult get_imu_pose_result_srv;
+    get_imu_pose_result_srv.request.temp = 0;
+    imu_pose_result_client.call(get_imu_pose_result_srv);
+    saveImuPosesFromSrv(get_imu_pose_result_srv);
+    addAbsFactorFromIMUPose(graph);
+
+    // tmp code
+    pointcloud_tools::SensorFrameID lidar_sensor_id;
+    lidar_sensor_id.frame_id = "pandar64_0";
+    lidar_sensor_id.vehicle = "solati_v5_1";
+    graph.getSensorVariable(lidar_sensor_id, true);
 
     do_optimize = true;
     optimizeGraph(graph);
@@ -483,10 +530,11 @@ int main(int argc, char **argv)
     server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
 
     tf::TransformBroadcaster broadcaster;
+    tf::TransformBroadcaster sensor_broadcaster;
 
     while (ros::ok())
     {
-        publishResults(graph, broadcaster);
+        publishResults(graph, broadcaster, sensor_broadcaster);
         ros::spinOnce();
         ros::Duration(0.3).sleep();
     }

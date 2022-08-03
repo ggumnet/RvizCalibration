@@ -1,2 +1,2 @@
 geometry_msgs/Pose pose
-string frame_name
+int64 frame_num

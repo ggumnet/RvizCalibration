@@ -9,54 +9,61 @@
 #include <rideflux_msgs/SensorDataID.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
-#include <pg_editor/TransformationInfo.h>
+#include <pg_editor/TransformInfo.h>
+#include <pg_lib/types.h>
+#include <pg_editor/GetImuPoseResult.h>
 
-std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1";
-std::string vehicle_ = "solati_v5_1";
-std::string bag_time_ = "2022-07-14-11-46-25";
-std::string data_dir_ = root_dirname_+"/"+vehicle_+"/"+bag_time_;
-std::string imu_file_name_ = data_dir_+"/pc_pose.txt";
-std::vector<std::string> field_names{"x","y","z","intensity"};
+using namespace pg_lib;
+#include <transform_pose_conversion.h>
+#include <print_tool.h>
 
-typedef class transform{
-    public:
-        double rotation[9];
-        double translation[9];
-} TRANSFORM;
+namespace initconfiguration{
+    const int pose_num = 12; 
+    std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
+    std::string vehicle_ = "solati_v5_1";
+    std::string bag_time_ = "2022-07-14-11-46-25";
+    std::string data_dir_ = root_dirname_+"/"+vehicle_+"/"+bag_time_;
+    std::string imu_file_name_ = data_dir_+"/pc_pose.txt";
+    std::string sensor_name_ = "pandar64_0";
+    std::vector<std::string> field_names{"x","y","z","intensity"};
+}
+std::vector<geometry_msgs::Pose> poses_vec_;
+std::vector<pg_lib::Transform> ECEF_transforms_vec_;
+std::vector<pg_lib::Transform> IMU0_transforms_vec_;
 
-std::vector<TRANSFORM> transforms_vec_;
 
 void parse_imu_data(const std::string& str, const std::string delimiters){
-
     boost::char_separator<char> sep(delimiters.c_str());
     boost::tokenizer<boost::char_separator<char>> tok(str, sep);
 
     int n = 0;
     boost::tokenizer<boost::char_separator<char>>::iterator itr = tok.begin();
-
-    TRANSFORM transform;
     
-    for(int i=0; i<12; i++){
+    pg_lib::Transform transform;
+    geometry_msgs::Pose pose;
+    
+    double ta[12]; //temp_array
+
+    for(int i=0; i<initconfiguration::pose_num; i++){
         ++itr;
         for(int j=0; j<12; j++){
-            if(j%4==3){
-                transform.translation[j/4] = stod(*itr);
-            }
-            else{
-                transform.rotation[j-j/4] = stod(*itr); 
-            }
+            ta[j] = stod(*itr); 
             ++itr;
         }
-        transforms_vec_.push_back(transform);
+        transform.setRotation(cv::Matx<double, 3UL, 3UL>(ta[0], ta[1], ta[2], ta[4], ta[5], ta[6], ta[8], ta[9], ta[10]));
+        transform.setTranslation(cv::Matx31d(ta[3], ta[7], ta[11]));
         for(int j=0; j<21; j++){
             ++itr;
         }
+        ECEF_transforms_vec_.push_back(transform);
+        //poses_vec_.push_back(transformToPose(transform));
     }
+    ROS_WARN("read done");
 }
 
 std::string createPCDirectoryPath(const rideflux_msgs::SensorDataID &msg) 
 {
-    return root_dirname_ + "/" + msg.vehicle + "/" + msg.bag_time + "/" + msg.sensor;
+    return initconfiguration::root_dirname_ + "/" + msg.vehicle + "/" + msg.bag_time + "/" + msg.sensor;
 }
 
 std::string createPCFilePath(const rideflux_msgs::SensorDataID &msg)
@@ -81,7 +88,6 @@ bool readPointcloud(const rideflux_msgs::SensorDataID &id, const std::vector<std
         ifs.close();
         return false;
     }
-
     sensor_msgs::PointCloud2 read_pc;
     try
     {
@@ -217,11 +223,9 @@ bool readPointcloud(const rideflux_msgs::SensorDataID &id, const std::vector<std
     return true;
 }
 
-void read_imu_data(){
+void readIMUdata(){
     std::string imu_read_string = "";
-
-    std::ifstream imu_file(imu_file_name_);
-
+    std::ifstream imu_file(initconfiguration::imu_file_name_);
     if (imu_file.is_open()) {
         while (imu_file) {
             std::string s;
@@ -230,36 +234,58 @@ void read_imu_data(){
         }  
         imu_file.close();
     } else {
-        std::cout << "imu_file open fail" << std::endl;
+        std::cout << "file open failed" << std::endl;
     }
-
     std::string delimiters = " \n\t";
     parse_imu_data(imu_read_string, delimiters);
 }
 
-bool pc_read_callback(pg_editor::GetPointcloud::Request &req, pg_editor::GetPointcloud::Response &res){
+bool IMUPoseResultCallback(pg_editor::GetImuPoseResult::Request &req, pg_editor::GetImuPoseResult::Response &res){
+    ROS_INFO("imu response %d", poses_vec_.size());
+    for(int i=0; i<poses_vec_.size(); i++)
+    {
+        res.pose_array.poses.push_back(poses_vec_.at(i));
+    }
+    return true;
+}
+
+bool pcReadCallback(pg_editor::GetPointcloud::Request &req, pg_editor::GetPointcloud::Response &res){
     //ROS_INFO("pc read callback");
     sensor_msgs::PointCloud2 pc;
 
-    rideflux_msgs::SensorDataID data_id;
-    data_id.vehicle = vehicle_;
-    data_id.bag_time = bag_time_;
-    data_id.time_step = 0;
-    data_id.sensor = req.pointcloud_name;
+    // rideflux_msgs::SensorDataID data_id;
+    // data_id.vehicle = initconfiguration::vehicle_;
+    // data_id.bag_time = initconfiguration::bag_time_;
+    // data_id.time_step = req.pointcloud_num;
+    // data_id.sensor = initconfiguration::sensor_name_;
 
-    if(!readPointcloud(data_id, field_names, pc))
+    if(!readPointcloud(req.data_id, initconfiguration::field_names, pc))
         return false;
-    pc.header.frame_id = data_id.sensor;
+    pc.header.frame_id = req.data_id.sensor;
     res.pointcloud = pc;
     return true;
+}
+
+//convert ECEF coordinates to IMU0 coordinates
+void ECEFToIMU0Conversion(){
+    pg_lib::Transform transform0 = ECEF_transforms_vec_.at(0), temp_transform;
+    IMU0_transforms_vec_.push_back(pg_lib::Transform::eye());
+    poses_vec_.push_back(transformToPose(pg_lib::Transform::eye()));
+
+    for(int i=1; i<ECEF_transforms_vec_.size(); i++){
+        temp_transform = ECEF_transforms_vec_.at(i);
+        IMU0_transforms_vec_.push_back(transform0.inv()*temp_transform); 
+        poses_vec_.push_back(transformToPose(transform0.inv()*temp_transform));
+    }
 }
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "data_reader_server");
     ros::NodeHandle nh;
-    read_imu_data();
-    ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pc_read_callback);
-
+    readIMUdata();
+    ECEFToIMU0Conversion();
+    ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pcReadCallback);
+    ros::ServiceServer imu_pose_result_service = nh.advertiseService("/imu_pose_result", IMUPoseResultCallback);
     ros::spin();
 }
