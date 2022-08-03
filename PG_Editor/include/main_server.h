@@ -1,4 +1,3 @@
-pointcloud_tools::SensorDataID init_id;
 boost::shared_ptr<InteractiveMarkerServer> server;
 
 
@@ -33,6 +32,8 @@ Graph *graph_ptr;
 int frame_num;
 std::string root_dirname_;
 std::string config_filename_;
+pointcloud_tools::SensorDataID init_id;
+
 
 std::vector<bool> pc_publish_or_not;
 

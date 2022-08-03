@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /Marker3
         - /Marker3/Namespaces1
         - /Marker4
       Splitter Ratio: 0.5
@@ -572,25 +573,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 53.82075881958008
+      Distance: 76.51150512695312
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 2.7039692401885986
-        Y: -1.5362353324890137
-        Z: -1.1889796951436438e-5
+        X: -1.3722081184387207
+        Y: 1.1653025150299072
+        Z: -1.4570429812010843e-5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.144796371459961
+      Pitch: 0.6097961664199829
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 2.9017562866210938
+      Yaw: 3.576756000518799
     Saved: ~
 Window Geometry:
   Displays:
