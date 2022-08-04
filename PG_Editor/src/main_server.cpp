@@ -214,7 +214,6 @@ bool addAbsFactorWithSensor(Graph &graph, pointcloud_tools::SensorDataID &id, po
     Pose::Ptr pose = graph.getVariable<Pose>(id, true);
     Pose::Ptr sensor = graph.getSensorVariable(sensor_id, true);
 
-
     Factor::Ptr factor_abs = std::make_shared<AbsolutePoseFactor>(pose, sensor, T, H);
     factor_abs->setIsReliable(true);
     factor_abs->setCost(COST_TYPE);
@@ -283,9 +282,7 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
 {
     Transform T;
     geometry_msgs::Pose pose = matching_result_service.response.result_pose;
-    // std::string frame1 = matching_result_service.request.pointcloud1.header.frame_id;
-    // std::string frame2 = matching_result_service.request.pointcloud2.header.frame_id;
-
+    
     //TODO
     int frame_num1 = matching_result_service.request.time_step1;
     int frame_num2 = matching_result_service.request.time_step2;
@@ -386,7 +383,6 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     visualizeGraph(graph, edge_pub, pose_pub, pose_pc_pub, "map");
     visualizePointclouds();
 }
-// arent you infected in COVID19?
 // TOSET
 void addAbsFactorFromIMUPose(Graph &graph)
 {
