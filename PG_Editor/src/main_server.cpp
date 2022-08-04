@@ -42,13 +42,6 @@ namespace initconfiguration
         root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
         config_filename_ = root_dirname_+"configuration.txt";
     }
-    // TOSET
-    void initSensorInfo()
-    {
-        init_id.vehicle = "solati_v5_1";
-        init_id.bag_time = "2022-07-14-11-46-25";
-        init_id.sensor = "pandar64_0";
-    }
     void initPointclouds()
     {
         pg_editor::GetPointcloud pointcloud_service;
@@ -460,6 +453,9 @@ int main(int argc, char **argv)
     Graph graph;
     graph_ptr = &graph;
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
+
+    //TO CHANGE
+    init_id.sensor = "pandar64_0";
 
     //initconfiguration::initSensorInfo();
     initconfiguration::initDirectoryConfiguration();

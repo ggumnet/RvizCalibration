@@ -4,10 +4,12 @@ void parse_config_data(const std::string &str, const std::string delimiters)
     boost::tokenizer<boost::char_separator<char>> tok(str, sep);
     boost::tokenizer<boost::char_separator<char>>::iterator itr = tok.begin();
     
-    init_id.vehicle = *(itr++);
-    init_id.bag_time = *(itr++);
-    for(;itr!=tok.end(); itr++){
-        init_id.sensor = *itr;
+    vehicle = init_id.vehicle = *(itr++);
+    bag_time = init_id.bag_time = *(itr++);
+    sensor_num = std::stoi(*(itr++));
+    frame_num = std::stoi(*(itr++));
+    for(int i=0; i<sensor_num; i++){
+        sensor_vec_.push_back(*(itr++));
     }
     ROS_WARN("config read done");
 }

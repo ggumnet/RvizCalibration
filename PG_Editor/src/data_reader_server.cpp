@@ -250,15 +250,7 @@ bool IMUPoseResultCallback(pg_editor::GetImuPoseResult::Request &req, pg_editor:
 }
 
 bool pcReadCallback(pg_editor::GetPointcloud::Request &req, pg_editor::GetPointcloud::Response &res){
-    //ROS_INFO("pc read callback");
     sensor_msgs::PointCloud2 pc;
-
-    // rideflux_msgs::SensorDataID data_id;
-    // data_id.vehicle = initconfiguration::vehicle_;
-    // data_id.bag_time = initconfiguration::bag_time_;
-    // data_id.time_step = req.pointcloud_num;
-    // data_id.sensor = initconfiguration::sensor_name_;
-
     if(!readPointcloud(req.data_id, initconfiguration::field_names, pc))
         return false;
     pc.header.frame_id = req.data_id.sensor;
