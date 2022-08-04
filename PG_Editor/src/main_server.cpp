@@ -361,8 +361,9 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     graph.createMsgToVisualize(marker, pose_array, indices);
 
     pointcloud_tools::SensorFrameID sensor_id;
+    //TO CHANGE
     sensor_id.frame_id = "pandar64_0";
-    sensor_id.vehicle = "solati_v5_1";
+    sensor_id.vehicle = vehicle;
     auto sensor_var = graph.getSensorVariable(sensor_id);
     // if(*sensor_var == *Pose::Ptr())
     //     ROS_WARN("Can not find %s/%s sensor variable in graph",sensor_id.vehicle.c_str(), sensor_id.frame_id.c_str());
@@ -466,7 +467,7 @@ int main(int argc, char **argv)
     edge_pub = nh.advertise<visualization_msgs::Marker>("/graph_edge", 1, true);
     pose_pub = nh.advertise<geometry_msgs::PoseArray>("/graph_pose", 1, true);
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/graph_pose_pc", 1, true);
-    transforminfo_pub = nh.advertise<pg_editor::TransformInfo>("/transform_info", 1, true);
+    transforminfo_pub = nh.advertise<pg_editor::TransformInfo>("/transform_info", 1, true); //for publishing clicked arrow
 
     ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
     ros::Subscriber remove_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/remove_edge_index_array", 10, removeIndexArrayCallback);

@@ -6,8 +6,9 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Marker3/Namespaces1
-        - /Marker4
+        - /Marker2
+        - /Marker2/Namespaces1
+        - /Marker3
       Splitter Ratio: 0.5
     Tree Height: 382
   - Class: rviz/Selection
@@ -401,14 +402,6 @@ Visualization Manager:
       Topic: /main_server/graph_pose
       Unreliable: false
       Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /main_server/graph_edge
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
       Enabled: true
@@ -572,25 +565,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 53.82075881958008
+      Distance: 12.413250923156738
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 2.7039692401885986
-        Y: -1.5362353324890137
-        Z: -1.1889796951436438e-5
+        X: 2.5036239624023438
+        Y: 1.6241852045059204
+        Z: -1.2843471267842688e-5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.144796371459961
+      Pitch: 0.5447972416877747
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 2.9017562866210938
+      Yaw: 4.021755218505859
     Saved: ~
 Window Geometry:
   Displays:
