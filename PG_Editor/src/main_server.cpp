@@ -170,7 +170,7 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
 
         marker.id = 0;
         marker.ns = "edges";
-        marker.scale.x = 0.2;
+        marker.scale.x = 0.03;
         marker.pose.orientation.x = 0;
         marker.pose.orientation.y = 0;
         marker.pose.orientation.z = 0;
@@ -297,8 +297,8 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
         for (std::size_t j = 0; j < DIM; ++j)
             T(i, j) = R[i][j];
     }
-    ROS_WARN("tf print");
-    printTransform(T);
+    // ROS_WARN("tf print");
+    // printTransform(T);
 
     pointcloud_tools::SensorFrameID sensor_id;
     sensor_id.frame_id = init_id.sensor;
@@ -447,6 +447,7 @@ void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_imu_pose_result_srv){
     }
 }
 
+//TO CHANGE
 void addEdges(){
     pointcloud_tools::SensorDataID temp_id1=init_id, temp_id2=init_id;
     pointcloud_tools::SensorFrameID sensor_id;
@@ -460,7 +461,7 @@ void addEdges(){
     for(int i=0; i<frame_num; i++){
         for(int j=i+1; j<frame_num; j++){
             ROS_WARN("%d %d", i,j);
-            ros::Duration(1.0).sleep();
+            //ros::Duration(0.001).sleep();
             requestRelativeFactor(i, j);
         }
     }
@@ -518,7 +519,7 @@ int main(int argc, char **argv)
     tf::TransformBroadcaster broadcaster;
     tf::TransformBroadcaster sensor_broadcaster;
 
-    addEdges();
+    //addEdges();
 
     while (ros::ok())
     {
