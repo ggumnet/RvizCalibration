@@ -43,6 +43,7 @@ struct MatchingOptions
 Transform matchTwoPCs(sensor_msgs::PointCloud2 &pc1, sensor_msgs::PointCloud2 &pc2, const MatchingOptions &option, Transform &T_init)
 {
   NDTOctreeGPU::Ptr ndt1 = std::make_shared<NDTOctreeGPU>(option.cell_size);
+  ROS_INFO("%d %d",pc1.data.size(), pc2.data.size());
   ndt1->addPointcloudMsg(pc1);
   ndt1->setNDTDataFromPoints();
   ndt1->computeNDsAtAllLevels();

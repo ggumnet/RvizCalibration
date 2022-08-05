@@ -297,6 +297,7 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
         for (std::size_t j = 0; j < DIM; ++j)
             T(i, j) = R[i][j];
     }
+    ROS_WARN("tf print");
     printTransform(T);
 
     pointcloud_tools::SensorFrameID sensor_id;
@@ -325,13 +326,15 @@ void requestRelativeFactor(int source_time_step, int dest_time_step)
     pg_editor::GetNDTMatchingResult matching_result_service;
     Transform T_source, T_dest;
 
-    T_source = time_step_to_init_transform_map[source_time_step];
-    T_dest = time_step_to_init_transform_map[dest_time_step];
+    T_source = transform_vec_.at(source_time_step);
+    T_dest = transform_vec_.at(dest_time_step);
 
-    matching_result_service.request.pointcloud1 = time_step_to_pointcloud_map[source_time_step];
-    matching_result_service.request.pointcloud2 = time_step_to_pointcloud_map[dest_time_step];
+    matching_result_service.request.pointcloud1 = pointcloud_vec_.at(source_time_step);
+    matching_result_service.request.pointcloud2 = pointcloud_vec_.at(dest_time_step);
     matching_result_service.request.time_step1 = source_time_step;
     matching_result_service.request.time_step2 = dest_time_step;
+    //ROS_WARN("pc size print");
+    //ROS_INFO("%d %d", matching_result_service.request.pointcloud1.data.size(), matching_result_service.request.pointcloud2.data.size());
     matching_result_service.request.initial_pose = transformToPose(T_source.inv() * T_dest);
 
     if (matching_result_client.call(matching_result_service))
@@ -390,7 +393,7 @@ void addAbsFactorFromIMUPose(Graph &graph)
     pointcloud_tools::SensorDataID temp_id =init_id;
     pointcloud_tools::SensorFrameID sensor_id;
     sensor_id.frame_id = "nov_imu";
-    sensor_id.vehicle = "solati_v5_1";
+    sensor_id.vehicle = vehicle;
     Transform T;
     ParamMatrix H(ParamMatrix::eye());
 
@@ -443,6 +446,26 @@ void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_imu_pose_result_srv){
         IMU_pose_vec_.push_back(pose);
     }
 }
+
+void addEdges(){
+    pointcloud_tools::SensorDataID temp_id1=init_id, temp_id2=init_id;
+    pointcloud_tools::SensorFrameID sensor_id;
+    sensor_id.frame_id = "pandar64_0";
+    sensor_id.vehicle = vehicle;
+    Transform T_init;
+    ParamMatrix H(ParamMatrix::eye());
+
+    for (std::size_t i = 0; i < PARAM_DIM; i++)
+        H(i, i) = 0.00001;  
+    for(int i=0; i<frame_num; i++){
+        for(int j=i+1; j<frame_num; j++){
+            ROS_WARN("%d %d", i,j);
+            ros::Duration(1.0).sleep();
+            requestRelativeFactor(i, j);
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
@@ -494,6 +517,8 @@ int main(int argc, char **argv)
 
     tf::TransformBroadcaster broadcaster;
     tf::TransformBroadcaster sensor_broadcaster;
+
+    addEdges();
 
     while (ros::ok())
     {
