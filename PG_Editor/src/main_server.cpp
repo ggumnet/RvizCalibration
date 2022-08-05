@@ -324,15 +324,19 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
 void requestRelativeFactor(int source_time_step, int dest_time_step)
 {
     pg_editor::GetNDTMatchingResult matching_result_service;
-    Transform T_source, T_dest;
+    Transform T_source, T_dest, T_lidar;
     pointcloud_tools::SensorDataID id_source, id_dest;
+    pointcloud_tools::SensorFrameID sensor_id;
 
     id_source = id_dest = init_id;
     id_source.time_step = source_time_step;
     id_dest.time_step = dest_time_step;
 
-    // T_source = transform_vec_.at(source_time_step);
-    // T_dest = transform_vec_.at(dest_time_step);
+    sensor_id.frame_id = "pandar64_0";
+    sensor_id.vehicle = vehicle;
+
+    auto sensor_var = (*graph_ptr).getSensorVariable(sensor_id);
+    auto T_sensor = sensor_var->getData();
 
     Pose::Ptr pose_source = (*graph_ptr).getVariable<Pose>(id_source, true);
     Pose::Ptr pose_dest = (*graph_ptr).getVariable<Pose>(id_dest, true);
@@ -342,12 +346,11 @@ void requestRelativeFactor(int source_time_step, int dest_time_step)
     T_dest.setTranslation((*pose_dest).getData().getTranslation());
     T_dest.setRotation((*pose_dest).getData().getRotation());
 
-
     matching_result_service.request.pointcloud1 = pointcloud_vec_.at(source_time_step);
     matching_result_service.request.pointcloud2 = pointcloud_vec_.at(dest_time_step);
     matching_result_service.request.time_step1 = source_time_step;
     matching_result_service.request.time_step2 = dest_time_step;
-    matching_result_service.request.initial_pose = transformToPose(T_source.inv() * T_dest);
+    matching_result_service.request.initial_pose = transformToPose(T_sensor.inv()*T_source.inv()*T_dest*T_sensor);
 
     if (matching_result_client.call(matching_result_service))
     {
