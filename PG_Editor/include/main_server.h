@@ -1,4 +1,3 @@
-pointcloud_tools::SensorDataID init_id;
 boost::shared_ptr<InteractiveMarkerServer> server;
 
 ros::Publisher relative_frame_pub;
@@ -34,6 +33,8 @@ std::vector<bool> pc_publish_or_not;
 
 std::string root_dirname_;
 std::string config_filename_;
+pointcloud_tools::SensorDataID init_id;
+
 
 bool do_optimize = false;
 int add_or_remove;

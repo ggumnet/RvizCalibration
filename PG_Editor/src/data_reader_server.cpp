@@ -17,6 +17,10 @@ using namespace pg_lib;
 #include <transform_pose_conversion.h>
 #include <print_tool.h>
 
+#include "data_reader_server.h"
+#include <read_configuration.h>
+
+
 namespace initconfiguration{
     const int pose_num = 12; 
     std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
@@ -26,6 +30,12 @@ namespace initconfiguration{
     std::string imu_file_name_ = data_dir_+"/pc_pose.txt";
     std::string sensor_name_ = "pandar64_0";
     std::vector<std::string> field_names{"x","y","z","intensity"};
+}
+
+void initDirectoryConfiguration(){
+    frame_num = 12;
+    root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
+    config_filename_ = root_dirname_+"configuration.txt";
 }
 std::vector<geometry_msgs::Pose> poses_vec_;
 std::vector<pg_lib::Transform> ECEF_transforms_vec_;
@@ -275,6 +285,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "data_reader_server");
     ros::NodeHandle nh;
+    initDirectoryConfiguration();
     readIMUdata();
     ECEFToIMU0Conversion();
     ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pcReadCallback);
