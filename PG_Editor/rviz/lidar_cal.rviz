@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: pc0
+    SyncSource: ""
   - Class: rviz_plugin_tutorials/Teleop
     Name: Teleop
     Topic: ""
@@ -88,56 +88,6 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        frame0:
-          Value: true
-        frame1:
-          Value: true
-        frame10:
-          Value: true
-        frame11:
-          Value: true
-        frame2:
-          Value: true
-        frame3:
-          Value: true
-        frame4:
-          Value: true
-        frame5:
-          Value: true
-        frame6:
-          Value: true
-        frame7:
-          Value: true
-        frame8:
-          Value: true
-        frame9:
-          Value: true
-        map:
-          Value: true
-        sensor_frame0:
-          Value: true
-        sensor_frame1:
-          Value: true
-        sensor_frame10:
-          Value: true
-        sensor_frame11:
-          Value: true
-        sensor_frame2:
-          Value: true
-        sensor_frame3:
-          Value: true
-        sensor_frame4:
-          Value: true
-        sensor_frame5:
-          Value: true
-        sensor_frame6:
-          Value: true
-        sensor_frame7:
-          Value: true
-        sensor_frame8:
-          Value: true
-        sensor_frame9:
-          Value: true
         solati_v5_1/nov_imu:
           Value: true
         solati_v5_1/pandar64_0:
@@ -148,43 +98,7 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          frame0:
-            sensor_frame0:
-              {}
-          frame1:
-            sensor_frame1:
-              {}
-          frame10:
-            sensor_frame10:
-              {}
-          frame11:
-            sensor_frame11:
-              {}
-          frame2:
-            sensor_frame2:
-              {}
-          frame3:
-            sensor_frame3:
-              {}
-          frame4:
-            sensor_frame4:
-              {}
-          frame5:
-            sensor_frame5:
-              {}
-          frame6:
-            sensor_frame6:
-              {}
-          frame7:
-            sensor_frame7:
-              {}
-          frame8:
-            sensor_frame8:
-              {}
-          frame9:
-            sensor_frame9:
-              {}
+        {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -199,7 +113,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -216,7 +130,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: false
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -229,7 +143,7 @@ Visualization Manager:
       Color: 252; 233; 79
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -246,7 +160,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: false
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -259,7 +173,7 @@ Visualization Manager:
       Color: 239; 41; 41
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -276,7 +190,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: false
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -289,7 +203,7 @@ Visualization Manager:
       Color: 114; 182; 255
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -306,7 +220,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -319,7 +233,7 @@ Visualization Manager:
       Color: 78; 154; 6
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -336,7 +250,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: false
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -349,7 +263,7 @@ Visualization Manager:
       Color: 206; 92; 0
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 255
@@ -366,7 +280,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -379,7 +293,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 255
@@ -396,7 +310,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
       Enabled: true
@@ -408,13 +322,13 @@ Visualization Manager:
       Value: true
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
-      Enabled: false
+      Enabled: true
       Name: InteractiveMarkers
       Show Axes: false
       Show Descriptions: true
       Show Visual Aids: false
       Update Topic: /pose_graph_example_node/update
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -427,7 +341,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -444,71 +358,21 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
-      Enabled: false
+      Enabled: true
       Name: InteractiveMarkers
       Show Axes: false
       Show Descriptions: true
       Show Visual Aids: false
       Update Topic: /pose_graph_example_node/update
-      Value: false
+      Value: true
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        frame0:
-          Value: true
-        frame1:
-          Value: true
-        frame10:
-          Value: true
-        frame11:
-          Value: true
-        frame2:
-          Value: true
-        frame3:
-          Value: true
-        frame4:
-          Value: true
-        frame5:
-          Value: true
-        frame6:
-          Value: true
-        frame7:
-          Value: true
-        frame8:
-          Value: true
-        frame9:
-          Value: true
-        map:
-          Value: true
-        sensor_frame0:
-          Value: true
-        sensor_frame1:
-          Value: true
-        sensor_frame10:
-          Value: true
-        sensor_frame11:
-          Value: true
-        sensor_frame2:
-          Value: true
-        sensor_frame3:
-          Value: true
-        sensor_frame4:
-          Value: true
-        sensor_frame5:
-          Value: true
-        sensor_frame6:
-          Value: true
-        sensor_frame7:
-          Value: true
-        sensor_frame8:
-          Value: true
-        sensor_frame9:
-          Value: true
         solati_v5_1/nov_imu:
           Value: true
         solati_v5_1/pandar64_0:
@@ -519,61 +383,25 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          frame0:
-            sensor_frame0:
-              {}
-          frame1:
-            sensor_frame1:
-              {}
-          frame10:
-            sensor_frame10:
-              {}
-          frame11:
-            sensor_frame11:
-              {}
-          frame2:
-            sensor_frame2:
-              {}
-          frame3:
-            sensor_frame3:
-              {}
-          frame4:
-            sensor_frame4:
-              {}
-          frame5:
-            sensor_frame5:
-              {}
-          frame6:
-            sensor_frame6:
-              {}
-          frame7:
-            sensor_frame7:
-              {}
-          frame8:
-            sensor_frame8:
-              {}
-          frame9:
-            sensor_frame9:
-              {}
+        {}
       Update Interval: 0
       Value: true
     - Class: rviz/Marker
-      Enabled: false
+      Enabled: true
       Marker Topic: /edge_arrow
       Name: Marker
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
     - Class: rviz/Marker
-      Enabled: false
+      Enabled: true
       Marker Topic: /graph_edge
       Name: Marker
       Namespaces:
         {}
       Queue Size: 100
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -600,7 +428,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 19.645408630371094
+      Distance: 34.62192153930664
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
