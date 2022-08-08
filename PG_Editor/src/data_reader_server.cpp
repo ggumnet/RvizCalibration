@@ -14,12 +14,11 @@
 #include <pg_editor/GetImuPoseResult.h>
 
 using namespace pg_lib;
-#include <transform_pose_conversion.h>
-#include <print_tool.h>
-
+#include "transform_pose_conversion.h"
+#include "print_tool.h"
+#include "configurations.h"
 #include "data_reader_server.h"
-#include <read_configuration.h>
-
+#include "read_configuration.h"
 
 void initDirectoryConfiguration(){
     frame_num = 12;

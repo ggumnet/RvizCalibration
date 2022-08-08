@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     catch (tf2::TransformException &ex)
     {
         ROS_ERROR("%s", ex.what());
-        ros::Duration(1.0).sleep();
+        ros::Duration(0.1).sleep();
     }
     ros::spin();
 }

@@ -22,11 +22,12 @@ using namespace visualization_msgs;
 using namespace interactive_markers;
 using namespace pg_lib;
 
-#include <rot2quat.h>
-#include <transform_pose_conversion.h>
-#include <print_tool.h>
 #include "main_server.h"
-#include <read_configuration.h>
+#include "configurations.h"
+#include "read_configuration.h"
+#include "rot2quat.h"
+#include "transform_pose_conversion.h"
+#include "print_tool.h"
 
 #define ADD 0
 #define REMOVE 1
@@ -313,11 +314,11 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
     else if (add_or_remove = REMOVE)
         removeRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
 
-    // if (do_optimize)
-    // {
-    //     optimizeGraph(*graph_ptr);
-    // }
-    // ROS_INFO("call back done");
+    if (do_optimize)
+    {
+        optimizeGraph(*graph_ptr);
+    }
+    //ROS_INFO("call back done");
 }
 
 // Request Relative Pose To NDT_matching node
@@ -335,7 +336,6 @@ void requestRelativeFactor(int source_time_step, int dest_time_step)
     id_lidar.frame_id = init_id.sensor;
     id_lidar.vehicle = init_id.vehicle;
 
-
     Pose::Ptr pose_source = (*graph_ptr).getVariable<Pose>(id_source, true);
     Pose::Ptr pose_dest = (*graph_ptr).getVariable<Pose>(id_dest, true);
     Pose::Ptr pose_lidar = (*graph_ptr).getSensorVariable(id_lidar, true);
@@ -347,7 +347,6 @@ void requestRelativeFactor(int source_time_step, int dest_time_step)
     T_lidar.setTranslation((*pose_lidar).getData().getTranslation());
     T_lidar.setRotation((*pose_lidar).getData().getRotation());
 
-
     matching_result_service.request.pointcloud1 = pointcloud_vec_.at(source_time_step);
     matching_result_service.request.pointcloud2 = pointcloud_vec_.at(dest_time_step);
     matching_result_service.request.time_step1 = source_time_step;
@@ -358,8 +357,8 @@ void requestRelativeFactor(int source_time_step, int dest_time_step)
     {
         responseRelativeFactor(matching_result_service);
     }
-    ROS_WARN("pc size print");
-    ROS_INFO("%d %d", matching_result_service.request.pointcloud1.data.size(), matching_result_service.request.pointcloud2.data.size());
+    // ROS_WARN("pc size print");
+    // ROS_INFO("%d %d", matching_result_service.request.pointcloud1.data.size(), matching_result_service.request.pointcloud2.data.size());
 }
 
 void visualizePointclouds()
@@ -537,10 +536,15 @@ int main(int argc, char **argv)
 
     tf::TransformBroadcaster broadcaster;
     tf::TransformBroadcaster sensor_broadcaster;
-    addEdges();
-    ROS_WARN("optimize graph");
-    (*graph_ptr).optimize(true);
 
+    addEdges();
+
+    ROS_WARN("optimize graph");
+
+    //graph.optimize(true);
+    graph.optimize(true);
+    
+    //graph.optimize(false);
     while (ros::ok())
     {
         publishResults(graph, broadcaster, sensor_broadcaster);

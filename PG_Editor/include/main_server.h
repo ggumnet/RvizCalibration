@@ -24,18 +24,9 @@ std::map<int, Transform> time_step_to_init_transform_map;
 
 Graph *graph_ptr;
 
-std::string vehicle;
-std::string bag_time;
-int sensor_num;
-int frame_num;
-std::vector<std::string> sensor_vec_;
-
 std::vector<bool> pc_publish_or_not;
 
 std::string root_dirname_;
-std::string config_filename_;
-pointcloud_tools::SensorDataID init_id;
-
 
 bool do_optimize = false;
 int add_or_remove;

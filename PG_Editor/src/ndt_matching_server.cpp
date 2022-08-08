@@ -2,29 +2,21 @@
 
 #include <ros/ros.h>
 #include <fstream>
-
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
 #include <rideflux_msgs/SensorDataID.h>
-
 #include <pointcloud_tools/ndt_octree_gpu.h>
 #include <pointcloud_tools/ndt_matcher_gpu.h>
-
 #include <pg_editor/RelativeFramesInfo.h>
 #include <pg_editor/RelativePoseInfo.h>
 #include <pg_editor/GetNDTMatchingResult.h>
 #include <pg_editor/GetPointcloud.h>
-
 #include <std_msgs/Int32MultiArray.h>
 
-#include <rot2quat.h>
-#include <types.h>
-#include <transform_pose_conversion.h>
-#include <print_tool.h>
-
-namespace initconfiguration{
-  int frame_num = 12;
-}
+#include "rot2quat.h"
+#include "types.h"
+#include "transform_pose_conversion.h"
+#include "print_tool.h"
 
 struct MatchingOptions
 {
@@ -43,7 +35,7 @@ struct MatchingOptions
 Transform matchTwoPCs(sensor_msgs::PointCloud2 &pc1, sensor_msgs::PointCloud2 &pc2, const MatchingOptions &option, Transform &T_init)
 {
   NDTOctreeGPU::Ptr ndt1 = std::make_shared<NDTOctreeGPU>(option.cell_size);
-  ROS_INFO("%d %d",pc1.data.size(), pc2.data.size());
+  //ROS_INFO("%d %d",pc1.data.size(), pc2.data.size());
   ndt1->addPointcloudMsg(pc1);
   ndt1->setNDTDataFromPoints();
   ndt1->computeNDsAtAllLevels();
@@ -93,15 +85,13 @@ bool matching_result_callback(pg_editor::GetNDTMatchingResult::Request& req, pg_
     sensor_msgs::PointCloud2 pointcloud1, pointcloud2;
     Transform T_init;
 
-    ROS_INFO("matching result callback called");
+    //ROS_INFO("matching result callback called");
 
     pointcloud1 = req.pointcloud1;
     pointcloud2 = req.pointcloud2;
 
     T_init = poseToTransform(req.initial_pose);
-    
     Transform T_result = iterativeNdt(T_init, pointcloud1, pointcloud2, 0.4, 0.2);
-
     res.result_pose = transformToPose(T_result);
 
     return true;
@@ -110,10 +100,7 @@ bool matching_result_callback(pg_editor::GetNDTMatchingResult::Request& req, pg_
 int main(int argc, char **argv){
     ros::init(argc, argv, "ndt_matching_server");
     ros::NodeHandle nh("~");
-
     ROS_INFO("done");
-
     ros::ServiceServer matching_result_service = nh.advertiseService("/matching_result", matching_result_callback);
-
     ros::spin();
 }

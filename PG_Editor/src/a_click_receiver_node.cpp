@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <pg_lib/graph.h>
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/Int32MultiArray.h>
 #include <tf/transform_listener.h>
@@ -6,32 +7,26 @@
 #include <cmath>
 #include <visualization_msgs/Marker.h>
 #include <pg_editor/TransformInfo.h>
+#include <boost/tokenizer.hpp>
 
-
+#include "configurations.h"
+#include "read_configuration.h"
 
 std_msgs::Int32MultiArray index_array;
 ros::Publisher pc_publish_index_pubs, arrow_edge_pubs, add_index_pubs, remove_index_pubs;
-
 std::map<int, tf::Vector3> time_step_to_origin_map;
-
 int index1, index2;
-
 bool index_pair_done = true, first_index_done = false;
-
-
 namespace initconfiguration
 {
-    const int frame_num = 12;
     void initOriginMap()
     {
-        for (int i = 0; i < initconfiguration::frame_num; i++)
+        for (int i = 0; i < frame_num; i++)
         {
             time_step_to_origin_map.insert(std::make_pair(i, tf::Vector3()));
         }
     }
 }
-using namespace initconfiguration;
-tf::Vector3 origin_list[frame_num];
 
 void resetIndex()
 {
@@ -201,6 +196,7 @@ int main(int argc, char **argv)
 
     ROS_INFO("a click done");
 
+    readConfiguration();
     for (int i = 0; i < frame_num; i++)
     {
         index_array.data.push_back(0);
