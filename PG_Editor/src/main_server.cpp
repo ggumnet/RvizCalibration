@@ -324,30 +324,35 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
 void requestRelativeFactor(int source_time_step, int dest_time_step)
 {
     pg_editor::GetNDTMatchingResult matching_result_service;
-    Transform T_source, T_dest;
+    Transform T_source, T_dest, T_lidar;
     pointcloud_tools::SensorDataID id_source, id_dest;
+    pointcloud_tools::SensorFrameID id_lidar;
 
     id_source = id_dest = init_id;
     id_source.time_step = source_time_step;
     id_dest.time_step = dest_time_step;
 
-    // T_source = transform_vec_.at(source_time_step);
-    // T_dest = transform_vec_.at(dest_time_step);
+    id_lidar.frame_id = init_id.sensor;
+    id_lidar.vehicle = init_id.vehicle;
+
 
     Pose::Ptr pose_source = (*graph_ptr).getVariable<Pose>(id_source, true);
     Pose::Ptr pose_dest = (*graph_ptr).getVariable<Pose>(id_dest, true);
+    Pose::Ptr pose_lidar = (*graph_ptr).getSensorVariable(id_lidar, true);
 
     T_source.setTranslation((*pose_source).getData().getTranslation());
     T_source.setRotation((*pose_source).getData().getRotation());
     T_dest.setTranslation((*pose_dest).getData().getTranslation());
     T_dest.setRotation((*pose_dest).getData().getRotation());
+    T_lidar.setTranslation((*pose_lidar).getData().getTranslation());
+    T_lidar.setRotation((*pose_lidar).getData().getRotation());
 
 
     matching_result_service.request.pointcloud1 = pointcloud_vec_.at(source_time_step);
     matching_result_service.request.pointcloud2 = pointcloud_vec_.at(dest_time_step);
     matching_result_service.request.time_step1 = source_time_step;
     matching_result_service.request.time_step2 = dest_time_step;
-    matching_result_service.request.initial_pose = transformToPose(T_source.inv() * T_dest);
+    matching_result_service.request.initial_pose = transformToPose(T_lidar.inv()*T_source.inv() * T_dest*T_lidar);
 
     if (matching_result_client.call(matching_result_service))
     {
@@ -532,8 +537,9 @@ int main(int argc, char **argv)
 
     tf::TransformBroadcaster broadcaster;
     tf::TransformBroadcaster sensor_broadcaster;
-
     addEdges();
+    ROS_WARN("optimize graph");
+    optimizeGraph(graph);
 
     while (ros::ok())
     {

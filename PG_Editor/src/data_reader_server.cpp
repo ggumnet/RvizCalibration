@@ -21,26 +21,11 @@ using namespace pg_lib;
 #include <read_configuration.h>
 
 
-namespace initconfiguration{
-    const int pose_num = 12; 
-    std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
-    std::string vehicle_ = "solati_v5_1";
-    std::string bag_time_ = "2022-07-14-11-46-25";
-    std::string data_dir_ = root_dirname_+vehicle_+"/"+bag_time_;
-    std::string imu_file_name_ = data_dir_+"/pc_pose.txt";
-    std::string sensor_name_ = "pandar64_0";
-    std::vector<std::string> field_names{"x","y","z","intensity"};
-}
-
 void initDirectoryConfiguration(){
     frame_num = 12;
     root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
     config_filename_ = root_dirname_+"configuration.txt";
 }
-std::vector<geometry_msgs::Pose> poses_vec_;
-std::vector<pg_lib::Transform> ECEF_transforms_vec_;
-std::vector<pg_lib::Transform> IMU0_transforms_vec_;
-
 
 void parse_imu_data(const std::string& str, const std::string delimiters){
     boost::char_separator<char> sep(delimiters.c_str());
@@ -54,7 +39,7 @@ void parse_imu_data(const std::string& str, const std::string delimiters){
     
     double ta[12]; //temp_array
 
-    for(int i=0; i<initconfiguration::pose_num; i++){
+    for(int i=0; i<frame_num; i++){
         ++itr;
         for(int j=0; j<12; j++){
             ta[j] = stod(*itr); 
@@ -73,7 +58,7 @@ void parse_imu_data(const std::string& str, const std::string delimiters){
 
 std::string createPCDirectoryPath(const rideflux_msgs::SensorDataID &msg) 
 {
-    return initconfiguration::root_dirname_ + msg.vehicle + "/" + msg.bag_time + "/" + msg.sensor;
+    return root_dirname_ + msg.vehicle + "/" + msg.bag_time + "/" + msg.sensor;
 }
 
 std::string createPCFilePath(const rideflux_msgs::SensorDataID &msg)
@@ -235,7 +220,7 @@ bool readPointcloud(const rideflux_msgs::SensorDataID &id, const std::vector<std
 
 void readIMUdata(){
     std::string imu_read_string = "";
-    std::ifstream imu_file(initconfiguration::imu_file_name_);
+    std::ifstream imu_file(imu_file_name_);
     if (imu_file.is_open()) {
         while (imu_file) {
             std::string s;
@@ -261,7 +246,7 @@ bool IMUPoseResultCallback(pg_editor::GetImuPoseResult::Request &req, pg_editor:
 
 bool pcReadCallback(pg_editor::GetPointcloud::Request &req, pg_editor::GetPointcloud::Response &res){
     sensor_msgs::PointCloud2 pc;
-    if(!readPointcloud(req.data_id, initconfiguration::field_names, pc))
+    if(!readPointcloud(req.data_id, field_names, pc))
         return false;
     pc.header.frame_id = req.data_id.sensor;
     res.pointcloud = pc;
@@ -286,6 +271,9 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "data_reader_server");
     ros::NodeHandle nh;
     initDirectoryConfiguration();
+    readConfiguration();
+    data_dir_ = root_dirname_+vehicle+"/"+bag_time;
+    imu_file_name_ = data_dir_+"/pc_pose.txt";
     readIMUdata();
     ECEFToIMU0Conversion();
     ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pcReadCallback);

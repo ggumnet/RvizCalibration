@@ -29,6 +29,7 @@ std::string bag_time;
 int sensor_num;
 int frame_num;
 std::vector<std::string> sensor_vec_;
+
 std::vector<bool> pc_publish_or_not;
 
 std::string root_dirname_;

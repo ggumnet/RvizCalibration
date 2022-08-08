@@ -115,9 +115,5 @@ int main(int argc, char **argv){
 
     ros::ServiceServer matching_result_service = nh.advertiseService("/matching_result", matching_result_callback);
 
-    while(ros::ok()){
-        ros::Duration(0.1).sleep();
-        ros::spinOnce();
-    }
-    return 0;
+    ros::spin();
 }
