@@ -313,10 +313,10 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
     else if (add_or_remove = REMOVE)
         removeRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
 
-    if (do_optimize)
-    {
-        optimizeGraph(*graph_ptr);
-    }
+    // if (do_optimize)
+    // {
+    //     optimizeGraph(*graph_ptr);
+    // }
     // ROS_INFO("call back done");
 }
 
@@ -358,8 +358,8 @@ void requestRelativeFactor(int source_time_step, int dest_time_step)
     {
         responseRelativeFactor(matching_result_service);
     }
-    //ROS_WARN("pc size print");
-    //ROS_INFO("%d %d", matching_result_service.request.pointcloud1.data.size(), matching_result_service.request.pointcloud2.data.size());
+    ROS_WARN("pc size print");
+    ROS_INFO("%d %d", matching_result_service.request.pointcloud1.data.size(), matching_result_service.request.pointcloud2.data.size());
 }
 
 void visualizePointclouds()
@@ -539,7 +539,7 @@ int main(int argc, char **argv)
     tf::TransformBroadcaster sensor_broadcaster;
     addEdges();
     ROS_WARN("optimize graph");
-    optimizeGraph(graph);
+    (*graph_ptr).optimize(true);
 
     while (ros::ok())
     {
