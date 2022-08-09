@@ -26,7 +26,5 @@ Graph *graph_ptr;
 
 std::vector<bool> pc_publish_or_not;
 
-std::string root_dirname_;
-
 bool do_optimize = false;
 int add_or_remove;

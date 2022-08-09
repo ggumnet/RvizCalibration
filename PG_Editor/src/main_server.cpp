@@ -38,11 +38,6 @@ using namespace pg_lib;
 //TOSET
 namespace initconfiguration
 {
-    void initDirectoryConfiguration(){
-        frame_num = 12;
-        root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
-        config_filename_ = root_dirname_+"configuration.txt";
-    }
     void initPointclouds()
     {
         pg_editor::GetPointcloud pointcloud_service;
@@ -314,10 +309,10 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
     else if (add_or_remove = REMOVE)
         removeRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
 
-    if (do_optimize)
-    {
-        optimizeGraph(*graph_ptr);
-    }
+    // if (do_optimize)
+    // {
+    //     optimizeGraph(*graph_ptr);
+    // }
     //ROS_INFO("call back done");
 }
 
@@ -493,15 +488,15 @@ int main(int argc, char **argv)
     graph_ptr = &graph;
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
 
+    graph.setMaxIteration(100);
+
     //TO CHANGE
     init_id.sensor = "pandar64_0";
-
-    //initconfiguration::initSensorInfo();
-    initconfiguration::initDirectoryConfiguration();
+    
+    readConfiguration();
     for(int i=0; i<frame_num; i++){
         pc_publish_or_not.push_back(true);
     }
-    readConfiguration();
     initconfiguration::initPointclouds();
     initconfiguration::initPointcloudPublisherList(nh);
     initconfiguration::initSensorDataID();
@@ -530,7 +525,7 @@ int main(int argc, char **argv)
     graph.getSensorVariable(lidar_sensor_id, true);
 
     do_optimize = true;
-    optimizeGraph(graph);
+    // optimizeGraph(graph);
 
     server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
 
@@ -541,8 +536,8 @@ int main(int argc, char **argv)
 
     ROS_WARN("optimize graph");
 
-    //graph.optimize(true);
     graph.optimize(true);
+    //graph.optimize(false);
     
     //graph.optimize(false);
     while (ros::ok())

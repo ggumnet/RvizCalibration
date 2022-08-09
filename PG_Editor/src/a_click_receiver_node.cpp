@@ -17,6 +17,7 @@ ros::Publisher pc_publish_index_pubs, arrow_edge_pubs, add_index_pubs, remove_in
 std::map<int, tf::Vector3> time_step_to_origin_map;
 int index1, index2;
 bool index_pair_done = true, first_index_done = false;
+
 namespace initconfiguration
 {
     void initOriginMap()

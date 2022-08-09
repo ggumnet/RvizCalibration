@@ -65,10 +65,8 @@ Transform matchTwoPCs(sensor_msgs::PointCloud2 &pc1, sensor_msgs::PointCloud2 &p
     C = matcher.getPoseCovariance();
     is_converged = matcher.isConverged();
   }
-  
   return T_est1;
 }
-
 
 Transform iterativeNdt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, sensor_msgs::PointCloud2 pc_est, float cell_size1, float cell_size2){
     MatchingOptions option;

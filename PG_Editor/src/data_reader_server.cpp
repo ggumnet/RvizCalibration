@@ -20,12 +20,6 @@ using namespace pg_lib;
 #include "data_reader_server.h"
 #include "read_configuration.h"
 
-void initDirectoryConfiguration(){
-    frame_num = 12;
-    root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
-    config_filename_ = root_dirname_+"configuration.txt";
-}
-
 void parse_imu_data(const std::string& str, const std::string delimiters){
     boost::char_separator<char> sep(delimiters.c_str());
     boost::tokenizer<boost::char_separator<char>> tok(str, sep);
@@ -269,10 +263,9 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "data_reader_server");
     ros::NodeHandle nh;
-    initDirectoryConfiguration();
     readConfiguration();
-    data_dir_ = root_dirname_+vehicle+"/"+bag_time;
-    imu_file_name_ = data_dir_+"/pc_pose.txt";
+    data_dirname_ = root_dirname_+vehicle+"/"+bag_time;
+    imu_file_name_ = data_dirname_+"/pc_pose.txt";
     readIMUdata();
     ECEFToIMU0Conversion();
     ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pcReadCallback);
