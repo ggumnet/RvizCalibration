@@ -17,6 +17,8 @@
 #include <tf/transform_broadcaster.h>
 #include <std_msgs/Int32MultiArray.h>
 #include <boost/tokenizer.hpp>
+#include <dynamic_reconfigure/server.h>
+#include <pg_editor/InitialConfigurationConfig.h>
 
 using namespace visualization_msgs;
 using namespace interactive_markers;
@@ -468,7 +470,6 @@ void addEdges(){
     sensor_id.vehicle = vehicle;
     Transform T_init;
     ParamMatrix H(ParamMatrix::eye());
-
     for (std::size_t i = 0; i < PARAM_DIM; i++)
         H(i, i) = 0.00001;  
     for(int i=0; i<frame_num; i++){
@@ -480,6 +481,11 @@ void addEdges(){
     }
 }
 
+void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t level)
+{
+    
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
@@ -489,6 +495,11 @@ int main(int argc, char **argv)
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
 
     graph.setMaxIteration(100);
+
+    dynamic_reconfigure::Server<pg_editor::InitialConfigurationConfig> server_;
+    pg_editor::InitialConfigurationConfig init_config_;
+
+    server_.setCallback(configCallback);
 
     //TO CHANGE
     init_id.sensor = "pandar64_0";
@@ -536,7 +547,7 @@ int main(int argc, char **argv)
 
     ROS_WARN("optimize graph");
 
-    graph.optimize(true);
+    // graph.optimize(true);
     //graph.optimize(false);
     
     //graph.optimize(false);

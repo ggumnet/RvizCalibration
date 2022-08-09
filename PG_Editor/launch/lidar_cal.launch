@@ -5,6 +5,7 @@
   <node pkg="pg_editor" name="main_server" type="main_server" output="screen"/>
   <node pkg="pg_editor" name="a_click_receiver_node" type="a_click_receiver_node" output="screen"/>  
   <node pkg="pg_editor" name="tf_broadcaster_node" type="tf_broadcaster_node" output="screen"/>  
+  <node pkg="rqt_reconfigure" name="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>  
   <node pkg="rviz" name="rviz" type="rviz" args="-d $(find pg_editor)/rviz/lidar_cal.rviz" output="screen"/>
 
 </launch>

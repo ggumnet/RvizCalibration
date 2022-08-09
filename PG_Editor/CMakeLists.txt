@@ -61,6 +61,11 @@ generate_messages(
   geometry_msgs
 )
 
+generate_dynamic_reconfigure_options(
+  cfg/InitialConfiguration.cfg
+  #...
+)
+
 catkin_package(
 #  INCLUDE_DIRS include
  CATKIN_DEPENDS dynamic_reconfigure interactive_markers pcl_ros roscpp std_srvs tf2_ros message_generation message_runtime
