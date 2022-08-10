@@ -1,6 +1,0 @@
-uint64[] indices 
-geometry_msgs/Pose[] poses
----
-geometry_msgs/PoseArray poses
-rideflux_msgs/SensorDataID[] data_ids
-float32 normalized_chi2

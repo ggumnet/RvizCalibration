@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: pc2
+    SyncSource: ""
   - Class: rviz_plugin_tutorials/Teleop
     Name: Teleop
     Topic: ""
@@ -88,103 +88,13 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        frame0:
-          Value: true
-        frame1:
-          Value: true
-        frame10:
-          Value: true
-        frame11:
-          Value: true
-        frame2:
-          Value: true
-        frame3:
-          Value: true
-        frame4:
-          Value: true
-        frame5:
-          Value: true
-        frame6:
-          Value: true
-        frame7:
-          Value: true
-        frame8:
-          Value: true
-        frame9:
-          Value: true
-        map:
-          Value: true
-        sensor_frame0:
-          Value: true
-        sensor_frame1:
-          Value: true
-        sensor_frame10:
-          Value: true
-        sensor_frame11:
-          Value: true
-        sensor_frame2:
-          Value: true
-        sensor_frame3:
-          Value: true
-        sensor_frame4:
-          Value: true
-        sensor_frame5:
-          Value: true
-        sensor_frame6:
-          Value: true
-        sensor_frame7:
-          Value: true
-        sensor_frame8:
-          Value: true
-        sensor_frame9:
-          Value: true
-        solati_v5_1/nov_imu:
-          Value: true
-        solati_v5_1/pandar64_0:
-          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          frame0:
-            sensor_frame0:
-              {}
-          frame1:
-            sensor_frame1:
-              {}
-          frame10:
-            sensor_frame10:
-              {}
-          frame11:
-            sensor_frame11:
-              {}
-          frame2:
-            sensor_frame2:
-              {}
-          frame3:
-            sensor_frame3:
-              {}
-          frame4:
-            sensor_frame4:
-              {}
-          frame5:
-            sensor_frame5:
-              {}
-          frame6:
-            sensor_frame6:
-              {}
-          frame7:
-            sensor_frame7:
-              {}
-          frame8:
-            sensor_frame8:
-              {}
-          frame9:
-            sensor_frame9:
-              {}
+        {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -459,103 +369,13 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        frame0:
-          Value: true
-        frame1:
-          Value: true
-        frame10:
-          Value: true
-        frame11:
-          Value: true
-        frame2:
-          Value: true
-        frame3:
-          Value: true
-        frame4:
-          Value: true
-        frame5:
-          Value: true
-        frame6:
-          Value: true
-        frame7:
-          Value: true
-        frame8:
-          Value: true
-        frame9:
-          Value: true
-        map:
-          Value: true
-        sensor_frame0:
-          Value: true
-        sensor_frame1:
-          Value: true
-        sensor_frame10:
-          Value: true
-        sensor_frame11:
-          Value: true
-        sensor_frame2:
-          Value: true
-        sensor_frame3:
-          Value: true
-        sensor_frame4:
-          Value: true
-        sensor_frame5:
-          Value: true
-        sensor_frame6:
-          Value: true
-        sensor_frame7:
-          Value: true
-        sensor_frame8:
-          Value: true
-        sensor_frame9:
-          Value: true
-        solati_v5_1/nov_imu:
-          Value: true
-        solati_v5_1/pandar64_0:
-          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          frame0:
-            sensor_frame0:
-              {}
-          frame1:
-            sensor_frame1:
-              {}
-          frame10:
-            sensor_frame10:
-              {}
-          frame11:
-            sensor_frame11:
-              {}
-          frame2:
-            sensor_frame2:
-              {}
-          frame3:
-            sensor_frame3:
-              {}
-          frame4:
-            sensor_frame4:
-              {}
-          frame5:
-            sensor_frame5:
-              {}
-          frame6:
-            sensor_frame6:
-              {}
-          frame7:
-            sensor_frame7:
-              {}
-          frame8:
-            sensor_frame8:
-              {}
-          frame9:
-            sensor_frame9:
-              {}
+        {}
       Update Interval: 0
       Value: true
     - Class: rviz/Marker
@@ -571,7 +391,7 @@ Visualization Manager:
       Marker Topic: /graph_edge
       Name: Marker
       Namespaces:
-        edges: true
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
@@ -600,7 +420,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 74.70858764648438
+      Distance: 53.80707550048828
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -615,7 +435,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4747964143753052
+      Pitch: 1.4697964191436768
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
       Yaw: 1.5567576885223389

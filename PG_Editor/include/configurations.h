@@ -6,3 +6,6 @@ std::vector<std::string> sensor_vec_;
 pointcloud_tools::SensorDataID init_id;
 std::string root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
 std::string config_filename_ = root_dirname_+"configuration.txt";
+bool is_single_lidar_imu_graph = false;
+bool is_multi_lidar_imu_graph1 = false;
+bool is_multi_lidar_imu_graph2 = false;

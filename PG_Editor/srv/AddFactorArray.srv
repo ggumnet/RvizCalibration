@@ -1,7 +1,0 @@
-AbsolutePointFactorInfo[] absolute_point_factors
-AbsolutePoseFactorInfo[] absolute_pose_factors
-RelativePose2FactorInfo[] relative_pose2_factors
----
-uint64[] absolute_point_factor_indices
-uint64[] absolute_pose_factor_indices
-uint64[] relative_pose2_factor_indices

@@ -53,6 +53,7 @@ add_service_files(
   GetPointcloud.srv
   GetImuPoseResult.srv
   SendConfiguration.srv
+  TfBroadcastInfo.srv
 )
 
 generate_messages(

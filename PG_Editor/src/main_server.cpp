@@ -8,18 +8,24 @@
 #include <geometry_msgs/Pose.h>
 #include <interactive_markers/interactive_marker_server.h>
 #include <interactive_markers/menu_handler.h>
+
+//srv
 #include <pg_editor/TransformInfo.h>
 #include <pg_editor/RelativeFramesInfo.h>
 #include <pg_editor/RelativePoseInfo.h>
 #include <pg_editor/GetPointcloud.h>
 #include <pg_editor/GetNDTMatchingResult.h>
 #include <pg_editor/GetImuPoseResult.h>
+#include <pg_editor/TfBroadcastInfo.h>
+
+//cfg
+#include <pg_editor/InitialConfigurationConfig.h>
+#include <pg_editor/SendConfiguration.h>
+
 #include <tf/transform_broadcaster.h>
 #include <std_msgs/Int32MultiArray.h>
 #include <boost/tokenizer.hpp>
 #include <dynamic_reconfigure/server.h>
-#include <pg_editor/InitialConfigurationConfig.h>
-#include <pg_editor/SendConfiguration.h>
 
 
 using namespace visualization_msgs;
@@ -381,8 +387,9 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     graph.createMsgToVisualize(marker, pose_array, indices);
 
     pointcloud_tools::SensorFrameID sensor_id;
-    //TO CHANGE
-    sensor_id.frame_id = "pandar64_0";
+    if(is_single_lidar_imu_graph){
+        sensor_id.frame_id = sensor_vec_.at(0);
+    }
     sensor_id.vehicle = vehicle;
     auto sensor_var = graph.getSensorVariable(sensor_id);
     // if(*sensor_var == *Pose::Ptr())
@@ -468,7 +475,9 @@ void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_imu_pose_result_srv){
 void addEdges(){
     pointcloud_tools::SensorDataID temp_id1=init_id, temp_id2=init_id;
     pointcloud_tools::SensorFrameID sensor_id;
-    sensor_id.frame_id = "pandar64_0";
+    if(is_single_lidar_imu_graph){
+        sensor_id.frame_id = sensor_vec_.at(0);
+    }
     sensor_id.vehicle = vehicle;
     Transform T_init;
     ParamMatrix H(ParamMatrix::eye());
@@ -493,6 +502,7 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
         sensor_num = 1;
         sensor_vec_.push_back(config.lidar_sensor);
         init_id.sensor = config.lidar_sensor;
+        is_single_lidar_imu_graph = true;
     }
     if(root_dirname_.compare("")!=0&&bag_time.compare("")!=0&&sensor_num!=0)
     {
@@ -544,17 +554,24 @@ int main(int argc, char **argv)
     send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
     sendConfiguration();
 
-    //TO CHANGE
-    //init_id.sensor = "pandar64_0";
-    
-    //readConfiguration();
     for(int i=0; i<frame_num; i++){
         pc_publish_or_not.push_back(true);
     }
+
     initconfiguration::initPointclouds();
     initconfiguration::initPointcloudPublisherList(nh);
     initconfiguration::initSensorDataID();
-    
+
+    ros::ServiceClient Tf_broadcast_info_client = nh.serviceClient<pg_editor::TfBroadcastInfo>("/Tf_broadcast_info");
+    pg_editor::TfBroadcastInfo Tf_broadcast_info_srv;
+        
+    if(is_single_lidar_imu_graph){
+        Tf_broadcast_info_srv.request.sensor_name = sensor_vec_.at(0);
+    }
+    Tf_broadcast_info_client.call(Tf_broadcast_info_srv);
+
+    ROS_WARN("return done");
+
     edge_pub = nh.advertise<visualization_msgs::Marker>("/graph_edge", 1, true);
     pose_pub = nh.advertise<geometry_msgs::PoseArray>("/graph_pose", 1, true);
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/graph_pose_pc", 1, true);
@@ -579,7 +596,6 @@ int main(int argc, char **argv)
     graph.getSensorVariable(lidar_sensor_id, true);
 
     do_optimize = true;
-    // optimizeGraph(graph);
 
     server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
 
@@ -587,11 +603,10 @@ int main(int argc, char **argv)
     tf::TransformBroadcaster sensor_broadcaster;
 
     addEdges();
-
     ROS_WARN("optimize graph");
 
     // graph.optimize(true);
-    
+
     while (ros::ok())
     {
         publishResults(graph, broadcaster, sensor_broadcaster);
