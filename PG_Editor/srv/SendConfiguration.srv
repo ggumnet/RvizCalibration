@@ -1,0 +1,7 @@
+string root_dirname
+string bag_time
+string vehicle
+uint8 sensor_num
+uint8 frame_num
+string[] sensor_vec
+---

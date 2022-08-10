@@ -19,6 +19,8 @@
 #include <boost/tokenizer.hpp>
 #include <dynamic_reconfigure/server.h>
 #include <pg_editor/InitialConfigurationConfig.h>
+#include <pg_editor/SendConfiguration.h>
+
 
 using namespace visualization_msgs;
 using namespace interactive_markers;
@@ -44,9 +46,9 @@ namespace initconfiguration
     {
         pg_editor::GetPointcloud pointcloud_service;
         rideflux_msgs::SensorDataID data_id;
-        data_id.vehicle = init_id.vehicle;
-        data_id.sensor = init_id.sensor;
-        data_id.bag_time = init_id.bag_time;
+        data_id.vehicle = vehicle;
+        data_id.sensor = sensor_vec_.at(0);
+        data_id.bag_time = bag_time;
         for (int i = 0; i < frame_num; i++)
         {
             data_id.time_step = i;
@@ -483,9 +485,39 @@ void addEdges(){
 
 void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t level)
 {
-    
+    ROS_INFO("config call back called");
+    root_dirname_ = config.root_dirname;
+    bag_time = init_id.bag_time = config.bag_time;
+    vehicle = init_id.vehicle = config.vehicle;
+    if(config.load_single_lidar_imu_graph){
+        sensor_num = 1;
+        sensor_vec_.push_back(config.lidar_sensor);
+        init_id.sensor = config.lidar_sensor;
+    }
+    if(root_dirname_.compare("")!=0&&bag_time.compare("")!=0&&sensor_num!=0)
+    {
+        configuration_set_done = true;
+    }
 }
 
+void setFrameNum(){
+    //TO CHANGE
+    frame_num = 12;
+}
+
+//send configuration to data_reader_server node
+void sendConfiguration(){
+    pg_editor::SendConfiguration send_configuration_srv;
+    send_configuration_srv.request.root_dirname = root_dirname_;
+    send_configuration_srv.request.bag_time = bag_time;
+    send_configuration_srv.request.vehicle = vehicle;
+    send_configuration_srv.request.sensor_num = sensor_num;
+    send_configuration_srv.request.frame_num = frame_num;
+    for(int i=0; i<sensor_num ;i++){
+        send_configuration_srv.request.sensor_vec.push_back(sensor_vec_.at(i));
+    }
+    send_configuration_client.call(send_configuration_srv);
+}
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
@@ -501,10 +533,21 @@ int main(int argc, char **argv)
 
     server_.setCallback(configCallback);
 
+    while(!configuration_set_done){
+        ros::spinOnce();
+        ros::Duration(0.01).sleep();
+    }
+
+    ROS_INFO("config set done");
+    setFrameNum();
+
+    send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
+    sendConfiguration();
+
     //TO CHANGE
-    init_id.sensor = "pandar64_0";
+    //init_id.sensor = "pandar64_0";
     
-    readConfiguration();
+    //readConfiguration();
     for(int i=0; i<frame_num; i++){
         pc_publish_or_not.push_back(true);
     }
@@ -548,9 +591,7 @@ int main(int argc, char **argv)
     ROS_WARN("optimize graph");
 
     // graph.optimize(true);
-    //graph.optimize(false);
     
-    //graph.optimize(false);
     while (ros::ok())
     {
         publishResults(graph, broadcaster, sensor_broadcaster);

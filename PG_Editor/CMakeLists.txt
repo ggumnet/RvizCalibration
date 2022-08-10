@@ -52,6 +52,7 @@ add_service_files(
   GetNDTMatchingResult.srv
   GetPointcloud.srv
   GetImuPoseResult.srv
+  SendConfiguration.srv
 )
 
 generate_messages(

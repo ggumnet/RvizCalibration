@@ -11,7 +11,7 @@ void parse_config_data(const std::string &str, const std::string delimiters)
     for(int i=0; i<sensor_num; i++){
         sensor_vec_.push_back(*(itr++));
     }
-    ROS_WARN("config read done");
+    //ROS_WARN("config read done");
 }
 void readConfiguration()
 {

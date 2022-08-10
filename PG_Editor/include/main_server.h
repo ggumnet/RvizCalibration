@@ -10,7 +10,7 @@ ros::Publisher pose_pc_pub;
 ros::Publisher transforminfo_pub;
 
 ros::ServiceClient pointcloud_client;
-ros::ServiceClient matching_result_client, imu_pose_result_client;
+ros::ServiceClient matching_result_client, imu_pose_result_client, send_configuration_client;
 pg_editor::GetNDTMatchingResult matching_result_service;
 
 std::vector<sensor_msgs::PointCloud2> pointcloud_vec_;
@@ -27,4 +27,5 @@ Graph *graph_ptr;
 std::vector<bool> pc_publish_or_not;
 
 bool do_optimize = false;
+bool configuration_set_done = false;
 int add_or_remove;

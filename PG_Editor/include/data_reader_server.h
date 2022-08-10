@@ -7,5 +7,4 @@ std::string data_dirname_;
 std::string imu_file_name_;
 std::vector<std::string> field_names{"x","y","z","intensity"};
 
-
-
+bool configuration_set_done = false;

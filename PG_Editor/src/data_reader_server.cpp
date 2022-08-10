@@ -12,6 +12,7 @@
 #include <pg_editor/TransformInfo.h>
 #include <pg_lib/types.h>
 #include <pg_editor/GetImuPoseResult.h>
+#include <pg_editor/SendConfiguration.h>
 
 using namespace pg_lib;
 #include "transform_pose_conversion.h"
@@ -229,7 +230,7 @@ void readIMUdata(){
 }
 
 bool IMUPoseResultCallback(pg_editor::GetImuPoseResult::Request &req, pg_editor::GetImuPoseResult::Response &res){
-    ROS_INFO("imu response %d", poses_vec_.size());
+    ROS_WARN("imu response %d", poses_vec_.size());
     for(int i=0; i<poses_vec_.size(); i++)
     {
         res.pose_array.poses.push_back(poses_vec_.at(i));
@@ -243,6 +244,20 @@ bool pcReadCallback(pg_editor::GetPointcloud::Request &req, pg_editor::GetPointc
         return false;
     pc.header.frame_id = req.data_id.sensor;
     res.pointcloud = pc;
+    return true;
+}
+
+bool setConfigurationCallback(pg_editor::SendConfiguration::Request &req, pg_editor::SendConfiguration::Response &res){
+    root_dirname_ = req.root_dirname;
+    bag_time = req.bag_time;
+    vehicle = req.vehicle;
+    sensor_num = req.sensor_num;
+    frame_num = req.frame_num;
+    ROS_WARN("%d", req.sensor_vec.size());
+    for(int i=0; i<sensor_num ;i++){
+        sensor_vec_.push_back(req.sensor_vec.at(i));
+    }
+    configuration_set_done = true;
     return true;
 }
 
@@ -263,12 +278,21 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "data_reader_server");
     ros::NodeHandle nh;
-    readConfiguration();
-    data_dirname_ = root_dirname_+vehicle+"/"+bag_time;
-    imu_file_name_ = data_dirname_+"/pc_pose.txt";
-    readIMUdata();
-    ECEFToIMU0Conversion();
+    //readConfiguration();
     ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pcReadCallback);
     ros::ServiceServer imu_pose_result_service = nh.advertiseService("/imu_pose_result", IMUPoseResultCallback);
+    ros::ServiceServer send_configuration_service = nh.advertiseService("/configuration", setConfigurationCallback);
+
+    while(!configuration_set_done){
+        ros::spinOnce();
+        ros::Duration(0.1).sleep();
+    }
+
+    data_dirname_ = root_dirname_+vehicle+"/"+bag_time+"/";
+    imu_file_name_ = data_dirname_+"pc_pose.txt";
+    ROS_WARN("%s", imu_file_name_.c_str());
+    readIMUdata();
+    ECEFToIMU0Conversion();
+
     ros::spin();
 }
