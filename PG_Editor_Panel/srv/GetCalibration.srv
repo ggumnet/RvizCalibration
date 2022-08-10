@@ -2,3 +2,4 @@ string sensor_ref
 string sensor_in
 ---
 float64[] calibration_result_vec
+bool validate_sensor_name

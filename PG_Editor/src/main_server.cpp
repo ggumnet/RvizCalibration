@@ -476,10 +476,17 @@ bool getCalibrationCallback(pg_editor_panel::GetCalibration::Request &req, pg_ed
     pointcloud_tools::SensorFrameID id_ref, id_in;
 
     id_ref.frame_id = req.sensor_ref;
+    id_ref.vehicle = vehicle;
+
     id_in.frame_id = req.sensor_in;
+    id_in.vehicle = vehicle;    
 
     Pose::Ptr pose_ref = (*graph_ptr).getSensorVariable(id_ref, true);
     Pose::Ptr pose_in = (*graph_ptr).getSensorVariable(id_in, true);
+
+    // if(pose_ref==nullptr||pose_in==nullptr){
+    //     res.validate_sensor_name = false;
+    // }
 
     T_ref.setTranslation((*pose_ref).getData().getTranslation());
     T_ref.setRotation((*pose_ref).getData().getRotation());
@@ -498,6 +505,7 @@ bool getCalibrationCallback(pg_editor_panel::GetCalibration::Request &req, pg_ed
     res.calibration_result_vec.push_back(result_pose.orientation.z);
     res.calibration_result_vec.push_back(result_pose.orientation.w);
 
+    res.validate_sensor_name = true;
     return true;
 }
 
@@ -634,7 +642,7 @@ int main(int argc, char **argv)
     tf::TransformBroadcaster broadcaster;
     tf::TransformBroadcaster sensor_broadcaster;
 
-    addEdges();
+    //addEdges();
     ROS_WARN("optimize graph");
 
     // graph.optimize(true);

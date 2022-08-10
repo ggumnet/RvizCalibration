@@ -40,6 +40,7 @@
 #include <vector>
 #include <std_srvs/Empty.h>
 #include <std_msgs/Empty.h>
+#include <boost/tokenizer.hpp>
 
 namespace pg_editor_panel
 {

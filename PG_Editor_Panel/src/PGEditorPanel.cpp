@@ -16,39 +16,9 @@ namespace pg_editor_panel
     add_msg_pubs = nh.advertise<std_msgs::Empty>("/pg_editor_panel/add", 1);
     remove_msg_pubs = nh.advertise<std_msgs::Empty>("/pg_editor_panel/remove", 1);
 
-    // if (!nh.param<int>("/yymmdd", yymmdd, 0)){
-    //   ROS_ERROR("[PGEditorPanel] Failed to read param yymmdd");
-    // }
-    // if (!nh.param<int>("/Zone", zone, 0)){
-    //   ROS_ERROR("[PGEditorPanel] Failed to read param Zone");
-    // }
-    // if (!nh.param<std::string>("/Area", area, "")){
-    //   ROS_ERROR("[PGEditorPanel] Failed to read param Area");
-    // }
-    // if (!nh.param<std::string>("/root_path", proc_path, "")){
-    //   ROS_ERROR("[PGEditorPanel] Failed to read param proc_path");
-    // }
     QHBoxLayout *mainLayout = new QHBoxLayout;
     QVBoxLayout *rightLayout = new QVBoxLayout;
     QVBoxLayout *leftLayout = new QVBoxLayout;
-
-    /*left layout1*/
-
-    // QGroupBox *leftGroupBox = new QGroupBox("Transformation result");
-    // QTableWidget *table = new QTableWidget(this);
-    // table->setRowCount(2);
-    // table->setColumnCount(1);
-
-    // QStringList vLabels;
-    // vLabels << "Ref"
-    //         << "In";
-
-    // table->setVerticalHeaderLabels(vLabels);
-
-    // leftLayout->addWidget(table);
-    // leftGroupBox->setLayout(leftLayout);
-
-    /*left layout2*/
 
     QWidget *w = new QWidget(this);
     message1 = new QTextEdit(w);
@@ -64,8 +34,6 @@ namespace pg_editor_panel
 
     QGroupBox *leftGroupBox = new QGroupBox("Input ref/in sensor name");
     leftGroupBox->setLayout(leftLayout);
-
-    /* right layout 2*/
 
     QGroupBox *rightGroupBox = new QGroupBox("Select Edge Mode");
 
@@ -108,20 +76,39 @@ namespace pg_editor_panel
   {
     pg_editor_panel::GetCalibration get_calibration_srv;
     // publish "/pg_editor_panel/add"
-    get_calibration_srv.request.sensor_ref = message1->toPlainText().toStdString();
-    get_calibration_srv.request.sensor_in = message2->toPlainText().toStdString();
+    std::string input_string = message1->toPlainText().toStdString();
+
+    if(input_string=="") return;
+
+    std::string delimiters = "-";
+    boost::char_separator<char> sep(delimiters.c_str());
+    boost::tokenizer<boost::char_separator<char>> tok(input_string, sep);
+    boost::tokenizer<boost::char_separator<char>>::iterator itr = tok.begin();
+
+    get_calibration_srv.request.sensor_ref = *itr++;
+    get_calibration_srv.request.sensor_in = *itr++;
+
+    if(itr!=tok.end()){
+      message1->setPlainText("Wrong Calibration input");
+      message2->clear();
+      return;
+    }
+
     get_calibration_client.call(get_calibration_srv);
 
+    if(!get_calibration_srv.response.validate_sensor_name){
+      message1->setPlainText("Wrong Calibration input");
+      message2->clear();
+      return;
+    }
+
     std::string result_string = "", temp_string;
-
-
     for(int i=0; i<get_calibration_srv.response.calibration_result_vec.size(); i++){
       temp_string = std::to_string(get_calibration_srv.response.calibration_result_vec.at(i));
       result_string += temp_string+"\n";
     }
-
-    message1->setPlainText(QString::fromStdString(result_string));
-    message2->clear();
+    message1->clear();
+    message2->setPlainText(QString::fromStdString(result_string));
   }
 
   void PGEditorPanel::addFactor()
