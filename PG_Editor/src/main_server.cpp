@@ -17,6 +17,7 @@
 #include <pg_editor/GetNDTMatchingResult.h>
 #include <pg_editor/GetImuPoseResult.h>
 #include <pg_editor/TfBroadcastInfo.h>
+#include <pg_editor_panel/GetCalibration.h>
 
 //cfg
 #include <pg_editor/InitialConfigurationConfig.h>
@@ -470,6 +471,35 @@ void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_imu_pose_result_srv){
         IMU_pose_vec_.push_back(pose);
     }
 }
+bool getCalibrationCallback(pg_editor_panel::GetCalibration::Request &req, pg_editor_panel::GetCalibration::Response &res){
+    Transform T_ref, T_in;
+    pointcloud_tools::SensorFrameID id_ref, id_in;
+
+    id_ref.frame_id = req.sensor_ref;
+    id_in.frame_id = req.sensor_in;
+
+    Pose::Ptr pose_ref = (*graph_ptr).getSensorVariable(id_ref, true);
+    Pose::Ptr pose_in = (*graph_ptr).getSensorVariable(id_in, true);
+
+    T_ref.setTranslation((*pose_ref).getData().getTranslation());
+    T_ref.setRotation((*pose_ref).getData().getRotation());
+
+    T_in.setTranslation((*pose_in).getData().getTranslation());
+    T_in.setRotation((*pose_in).getData().getRotation());
+
+    geometry_msgs::Pose result_pose = transformToPose(T_ref.inv()*T_in);
+
+    res.calibration_result_vec.push_back(result_pose.position.x);
+    res.calibration_result_vec.push_back(result_pose.position.y);
+    res.calibration_result_vec.push_back(result_pose.position.z);
+
+    res.calibration_result_vec.push_back(result_pose.orientation.x);
+    res.calibration_result_vec.push_back(result_pose.orientation.y);
+    res.calibration_result_vec.push_back(result_pose.orientation.z);
+    res.calibration_result_vec.push_back(result_pose.orientation.w);
+
+    return true;
+}
 
 //TO CHANGE
 void addEdges(){
@@ -580,6 +610,8 @@ int main(int argc, char **argv)
     ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
     ros::Subscriber remove_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/remove_edge_index_array", 10, removeIndexArrayCallback);
     ros::Subscriber pc_publish_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/pc_publish_index_array", 1, pcPublishIndexArrayCallback);
+
+    ros::ServiceServer get_calibration_result_service = nh.advertiseService("/pg_editor_panel/get_calibration", getCalibrationCallback);
 
     matching_result_client = nh.serviceClient<pg_editor::GetNDTMatchingResult>("/matching_result");
     imu_pose_result_client = nh.serviceClient<pg_editor::GetImuPoseResult>("/imu_pose_result");

@@ -27,6 +27,7 @@
 #include <QTableView>
 #include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QTextEdit>
 
 #include <QKeyEvent>
 
@@ -58,6 +59,7 @@ private Q_SLOTS:
   void removeFactor();
   void optimize();
   void uploadReleasedNAS();
+  void getCalibration();
 //   void loadData();
 
 private:
@@ -66,11 +68,13 @@ private:
   ros::ServiceClient save_client_;
   ros::ServiceClient bin_to_tree_client_;
   ros::ServiceClient upload_client_, upload_released_client_;
-  ros::ServiceClient add_factor_client, optimize_client;
+  ros::ServiceClient add_factor_client, optimize_client, get_calibration_client;
   ros::ServiceClient client_export_graph;
   ros::Publisher remove_msg_pubs, add_msg_pubs;
   std::string area, proc_path;
   int zone,yymmdd, worker_id;
+  QTextEdit *message1;
+  QTextEdit *message2;
 };
 
 } // namespace spl_editor_panel

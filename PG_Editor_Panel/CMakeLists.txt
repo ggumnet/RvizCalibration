@@ -10,13 +10,28 @@ find_package(catkin REQUIRED COMPONENTS
   std_srvs
 )
 
+add_service_files(
+  FILES
+  GetCalibration.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
 catkin_package(
 )
 
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
+  ${MKL_INCLUDE_DIR}
+  ${PYTHON_INCLUDE_DIRS}
 )
+
+
+
 
 find_package(Qt5 COMPONENTS Core Widgets PATHS "/lib/libqt")
 

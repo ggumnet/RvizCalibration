@@ -1,4 +1,5 @@
 #include "pg_editor_panel/PGEditorPanel.h"
+#include <pg_editor_panel/GetCalibration.h>
 
 namespace pg_editor_panel
 {
@@ -7,11 +8,11 @@ namespace pg_editor_panel
   {
     ros::NodeHandle nh;
     ros::NodeHandle nh_pc("pg_editor_node");
-    save_client_ = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/save_pc");
     upload_client_ = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/upload_pc_tree");
     upload_released_client_ = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/upload_pc_tree_released");
     add_factor_client = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/add_factor");
     optimize_client = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/optimize");
+    get_calibration_client = nh.serviceClient<pg_editor_panel::GetCalibration>("/pg_editor_panel/get_calibration");
     add_msg_pubs = nh.advertise<std_msgs::Empty>("/pg_editor_panel/add", 1);
     remove_msg_pubs = nh.advertise<std_msgs::Empty>("/pg_editor_panel/remove", 1);
 
@@ -31,35 +32,37 @@ namespace pg_editor_panel
     QVBoxLayout *rightLayout = new QVBoxLayout;
     QVBoxLayout *leftLayout = new QVBoxLayout;
 
-    /*left layout*/
+    /*left layout1*/
 
-    QGroupBox *leftGroupBox = new QGroupBox("Transformation result");
+    // QGroupBox *leftGroupBox = new QGroupBox("Transformation result");
+    // QTableWidget *table = new QTableWidget(this);
+    // table->setRowCount(2);
+    // table->setColumnCount(1);
 
-    /*left layout*/
+    // QStringList vLabels;
+    // vLabels << "Ref"
+    //         << "In";
 
-    // QTableView *view = new QTableView;
+    // table->setVerticalHeaderLabels(vLabels);
 
-    // QAbstractItemModel *model;
+    // leftLayout->addWidget(table);
+    // leftGroupBox->setLayout(leftLayout);
 
-    // model->setHeaderData(0, Qt::Horizontal, QObject::tr("Data type"));
-    // model->setHeaderData(1, Qt::Horizontal, QObject::tr("Result"));
+    /*left layout2*/
 
-    // view->setModel(model);
-    // view->show();
+    QWidget *w = new QWidget(this);
+    message1 = new QTextEdit(w);
+    message2 = new QTextEdit(w);
+    leftLayout->addWidget(message1);
+    leftLayout->addWidget(message2);
 
-    // view->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    QPushButton *GetCalibrationButton = new QPushButton(tr("Get Calibration Result"));
+    GetCalibrationButton->setStyleSheet("color: white; background-color: rgb(180,180,0); border-radius: 5px; height: 30px; margin-bottom: 5px;");
+    connect(GetCalibrationButton, SIGNAL(clicked()), this, SLOT(getCalibration()));
 
-    QTableWidget *table = new QTableWidget(this);
-    table->setRowCount(2);
-    table->setColumnCount(1);
+    leftLayout->addWidget(GetCalibrationButton);
 
-    QStringList vLabels;
-    vLabels << "Ref"
-            << "In";
-
-    table->setVerticalHeaderLabels(vLabels);
-
-    leftLayout->addWidget(table);
+    QGroupBox *leftGroupBox = new QGroupBox("Input ref/in sensor name");
     leftGroupBox->setLayout(leftLayout);
 
     /* right layout 2*/
@@ -85,8 +88,6 @@ namespace pg_editor_panel
     setLayout(mainLayout);
   }
 
-  //
-
   void PGEditorPanel::load(const rviz::Config &config)
   {
     rviz::Panel::load(config);
@@ -103,16 +104,24 @@ namespace pg_editor_panel
     upload_client_.call(empty_srv);
   }
 
-  void PGEditorPanel::uploadReleasedNAS()
+  void PGEditorPanel::getCalibration()
   {
-    std_srvs::Empty empty_srv;
-    upload_released_client_.call(empty_srv);
-  }
+    pg_editor_panel::GetCalibration get_calibration_srv;
+    // publish "/pg_editor_panel/add"
+    get_calibration_srv.request.sensor_ref = message1->toPlainText().toStdString();
+    get_calibration_srv.request.sensor_in = message2->toPlainText().toStdString();
+    get_calibration_client.call(get_calibration_srv);
 
-  void PGEditorPanel::saveData()
-  {
-    std_srvs::Empty empty_srv;
-    save_client_.call(empty_srv);
+    std::string result_string = "", temp_string;
+
+
+    for(int i=0; i<get_calibration_srv.response.calibration_result_vec.size(); i++){
+      temp_string = std::to_string(get_calibration_srv.response.calibration_result_vec.at(i));
+      result_string += temp_string+"\n";
+    }
+
+    message1->setPlainText(QString::fromStdString(result_string));
+    message2->clear();
   }
 
   void PGEditorPanel::addFactor()
@@ -128,7 +137,6 @@ namespace pg_editor_panel
     // publish "/pg_editor_panel/remove"
     remove_msg_pubs.publish(empty_msg);
   }
-
 } // namespace pg_editor_panel
 
 #include <pluginlib/class_list_macros.h>
