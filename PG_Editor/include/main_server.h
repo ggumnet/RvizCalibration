@@ -29,3 +29,4 @@ std::vector<bool> pc_publish_or_not;
 bool do_optimize = false;
 bool configuration_set_done = false;
 int add_or_remove;
+int max_iteration;

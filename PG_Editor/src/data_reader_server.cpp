@@ -260,19 +260,6 @@ bool setConfigurationCallback(pg_editor::SendConfiguration::Request &req, pg_edi
     return true;
 }
 
-//convert ECEF coordinates to IMU0 coordinates
-void ECEFToIMU0Conversion(){
-    pg_lib::Transform transform0 = ECEF_transforms_vec_.at(0), temp_transform;
-    IMU0_transforms_vec_.push_back(pg_lib::Transform::eye());
-    poses_vec_.push_back(transformToPose(pg_lib::Transform::eye()));
-
-    for(int i=1; i<ECEF_transforms_vec_.size(); i++){
-        temp_transform = ECEF_transforms_vec_.at(i);
-        IMU0_transforms_vec_.push_back(transform0.inv()*temp_transform); 
-        poses_vec_.push_back(transformToPose(transform0.inv()*temp_transform));
-    }
-}
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "data_reader_server");

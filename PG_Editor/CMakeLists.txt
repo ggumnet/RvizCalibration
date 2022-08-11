@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pg_editor)
  
-add_compile_options(-std=c++14)
+add_compile_options(-std=c++17)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -81,12 +81,15 @@ include_directories(
   ${PYTHON_INCLUDE_DIRS}
 )
 
+SET(GCC_COVERAGE_LINK_FLAGS "-lstdc++fs")
+
 add_executable(main_server src/main_server.cpp)
 target_link_libraries(main_server
   # ${rf_lib}
   ${catkin_LIBRARIES}
   ${MKL_LIBRARIES}
   # ${TBB_LIBRARIES}
+  ${GCC_COVERAGE_LINK_FLAGS}
 )
 add_dependencies(main_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 message(MKL_LIBRARIES: ${MKL_LIBRARIES})

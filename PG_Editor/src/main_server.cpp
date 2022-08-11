@@ -8,6 +8,7 @@
 #include <geometry_msgs/Pose.h>
 #include <interactive_markers/interactive_marker_server.h>
 #include <interactive_markers/menu_handler.h>
+#include <experimental/filesystem>
 
 //srv
 #include <pg_editor/TransformInfo.h>
@@ -304,8 +305,6 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
         for (std::size_t j = 0; j < DIM; ++j)
             T(i, j) = R[i][j];
     }
-    // ROS_WARN("tf print");
-    // printTransform(T);
 
     pointcloud_tools::SensorFrameID sensor_id;
     sensor_id.frame_id = init_id.sensor;
@@ -319,12 +318,6 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
         addRelativeFactorWithSensor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], sensor_id, sensor_id, T, H);
     else if (add_or_remove = REMOVE)
         removeRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
-
-    // if (do_optimize)
-    // {
-    //     optimizeGraph(*graph_ptr);
-    // }
-    //ROS_INFO("call back done");
 }
 
 // Request Relative Pose To NDT_matching node
@@ -539,6 +532,7 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
     root_dirname_ = config.root_dirname;
     bag_time = init_id.bag_time = config.bag_time;
     vehicle = init_id.vehicle = config.vehicle;
+    max_iteration = config.max_iteration;
     if(config.load_single_lidar_imu_graph){
         sensor_num = 1;
         sensor_vec_.push_back(config.lidar_sensor);
@@ -553,7 +547,14 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
 
 void setFrameNum(){
     //TO CHANGE
-    frame_num = 12;
+    int cnt = 0;
+    std::string path = root_dirname_+vehicle+"/"+bag_time+"/"+sensor_vec_.at(0)+"/";
+    for (const auto & entry : std::experimental::filesystem::directory_iterator(path)){
+        cnt++;
+    }
+    frame_num = cnt;
+    ROS_WARN("frame number %d", frame_num);
+    //frame_num = 12;
 }
 
 //send configuration to data_reader_server node
@@ -577,8 +578,6 @@ int main(int argc, char **argv)
     graph_ptr = &graph;
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
 
-    graph.setMaxIteration(100);
-
     dynamic_reconfigure::Server<pg_editor::InitialConfigurationConfig> server_;
     pg_editor::InitialConfigurationConfig init_config_;
 
@@ -588,6 +587,7 @@ int main(int argc, char **argv)
         ros::spinOnce();
         ros::Duration(0.01).sleep();
     }
+    graph.setMaxIteration(max_iteration);
 
     ROS_INFO("config set done");
     setFrameNum();
@@ -646,7 +646,7 @@ int main(int argc, char **argv)
 
     ROS_WARN("optimize graph");
 
-    // graph.optimize(true);
+    graph.optimize(true);
 
     while (ros::ok())
     {
