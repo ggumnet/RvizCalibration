@@ -462,13 +462,16 @@ void pcPublishIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
         pc_publish_or_not.at(i) = msg->data.at(i) == 1;
     }
 }
-void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_imu_pose_result_srv){
-    geometry_msgs::Pose pose;
-    ROS_INFO("%d", get_imu_pose_result_srv.response.pose_array.poses.size());
-    for(int i=0; i<get_imu_pose_result_srv.response.pose_array.poses.size(); i++){
-        pose = get_imu_pose_result_srv.response.pose_array.poses.at(i);
-        transform_vec_.push_back(poseToTransform(pose));
-        IMU_pose_vec_.push_back(pose);
+void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_ECEF_pose_result_srv){
+    ROS_WARN("ecef result size: %d", get_ECEF_pose_result_srv.response.pose_array.poses.size());
+    geometry_msgs::Pose pose0 = get_ECEF_pose_result_srv.response.pose_array.poses.at(0);
+    pg_lib::Transform transform0 = poseToTransform(get_ECEF_pose_result_srv.response.pose_array.poses.at(0)), temp_transform;
+    IMU_transform_vec_.push_back(pg_lib::Transform::eye());
+    IMU_pose_vec_.push_back(transformToPose(pg_lib::Transform::eye()));
+    for(int i=1; i<get_ECEF_pose_result_srv.response.pose_array.poses.size(); i++){
+        temp_transform = poseToTransform(get_ECEF_pose_result_srv.response.pose_array.poses.at(i));
+        IMU_transform_vec_.push_back(transform0.inv()*temp_transform); 
+        IMU_pose_vec_.push_back(transformToPose(transform0.inv()*temp_transform));
     }
 }
 bool getCalibrationCallback(pg_editor_panel::GetCalibration::Request &req, pg_editor_panel::GetCalibration::Response &res){
@@ -622,12 +625,11 @@ int main(int argc, char **argv)
     ros::ServiceServer get_calibration_result_service = nh.advertiseService("/pg_editor_panel/get_calibration", getCalibrationCallback);
 
     matching_result_client = nh.serviceClient<pg_editor::GetNDTMatchingResult>("/matching_result");
-    imu_pose_result_client = nh.serviceClient<pg_editor::GetImuPoseResult>("/imu_pose_result");
+    ECEF_pose_result_client = nh.serviceClient<pg_editor::GetImuPoseResult>("/ECEF_pose_result");
 
-    pg_editor::GetImuPoseResult get_imu_pose_result_srv;
-    get_imu_pose_result_srv.request.temp = 0;
-    imu_pose_result_client.call(get_imu_pose_result_srv);
-    saveImuPosesFromSrv(get_imu_pose_result_srv);
+    pg_editor::GetImuPoseResult get_ECEF_pose_result_srv;
+    ECEF_pose_result_client.call(get_ECEF_pose_result_srv);
+    saveImuPosesFromSrv(get_ECEF_pose_result_srv);
     addAbsFactorFromIMUPose(graph);
 
     pointcloud_tools::SensorFrameID lidar_sensor_id;
@@ -642,7 +644,6 @@ int main(int argc, char **argv)
     tf::TransformBroadcaster broadcaster;
     tf::TransformBroadcaster sensor_broadcaster;
 
-    //addEdges();
     ROS_WARN("optimize graph");
 
     // graph.optimize(true);

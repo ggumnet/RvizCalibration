@@ -10,12 +10,12 @@ ros::Publisher pose_pc_pub;
 ros::Publisher transforminfo_pub;
 
 ros::ServiceClient pointcloud_client;
-ros::ServiceClient matching_result_client, imu_pose_result_client, send_configuration_client;
+ros::ServiceClient matching_result_client, ECEF_pose_result_client, send_configuration_client;
 pg_editor::GetNDTMatchingResult matching_result_service;
 
 std::vector<sensor_msgs::PointCloud2> pointcloud_vec_;
 std::vector<ros::Publisher> pc_publisher_vec_;
-std::vector<Transform> transform_vec_;
+std::vector<Transform> IMU_transform_vec_;
 std::vector<geometry_msgs::Pose> IMU_pose_vec_;
 
 std::map<int, pointcloud_tools::SensorDataID> time_step_to_sensorDataID_map;

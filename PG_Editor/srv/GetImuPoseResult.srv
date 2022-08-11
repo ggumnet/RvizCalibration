@@ -1,3 +1,2 @@
-int64 temp
 ---
 geometry_msgs/PoseArray pose_array

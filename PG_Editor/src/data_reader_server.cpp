@@ -229,11 +229,11 @@ void readIMUdata(){
     parse_imu_data(imu_read_string, delimiters);
 }
 
-bool IMUPoseResultCallback(pg_editor::GetImuPoseResult::Request &req, pg_editor::GetImuPoseResult::Response &res){
-    ROS_WARN("imu response %d", poses_vec_.size());
-    for(int i=0; i<poses_vec_.size(); i++)
+bool ECEFPoseResultCallback(pg_editor::GetImuPoseResult::Request &req, pg_editor::GetImuPoseResult::Response &res){
+    ROS_WARN("ecef size %d", ECEF_transforms_vec_.size());
+    for(int i=0; i<ECEF_transforms_vec_.size(); i++)
     {
-        res.pose_array.poses.push_back(poses_vec_.at(i));
+        res.pose_array.poses.push_back(transformToPose(ECEF_transforms_vec_.at(i)));
     }
     return true;
 }
@@ -253,7 +253,6 @@ bool setConfigurationCallback(pg_editor::SendConfiguration::Request &req, pg_edi
     vehicle = req.vehicle;
     sensor_num = req.sensor_num;
     frame_num = req.frame_num;
-    ROS_WARN("%d", req.sensor_vec.size());
     for(int i=0; i<sensor_num ;i++){
         sensor_vec_.push_back(req.sensor_vec.at(i));
     }
@@ -278,10 +277,9 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "data_reader_server");
     ros::NodeHandle nh;
-    //readConfiguration();
-    ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pcReadCallback);
-    ros::ServiceServer imu_pose_result_service = nh.advertiseService("/imu_pose_result", IMUPoseResultCallback);
     ros::ServiceServer send_configuration_service = nh.advertiseService("/configuration", setConfigurationCallback);
+    ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pcReadCallback);
+    ros::ServiceServer ECEF_pose_result_service = nh.advertiseService("/ECEF_pose_result", ECEFPoseResultCallback);
 
     while(!configuration_set_done){
         ros::spinOnce();
@@ -290,9 +288,6 @@ int main(int argc, char **argv)
 
     data_dirname_ = root_dirname_+vehicle+"/"+bag_time+"/";
     imu_file_name_ = data_dirname_+"pc_pose.txt";
-    ROS_WARN("%s", imu_file_name_.c_str());
     readIMUdata();
-    ECEFToIMU0Conversion();
-
     ros::spin();
 }
