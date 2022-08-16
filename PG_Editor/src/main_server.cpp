@@ -29,7 +29,6 @@
 #include <boost/tokenizer.hpp>
 #include <dynamic_reconfigure/server.h>
 
-
 using namespace visualization_msgs;
 using namespace interactive_markers;
 using namespace pg_lib;
@@ -77,6 +76,12 @@ namespace initconfiguration
             publisher = nh.advertise<sensor_msgs::PointCloud2>("/pc_" + std::to_string(i), 1);
             pc_publisher_vec_.push_back(publisher);
         }
+    }
+    void init3PointcloudPublisherList(ros::NodeHandle &nh)
+    {
+        pc_in_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_in", 1);
+        pc_ref_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_ref", 1);
+        map_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/map_pc", 1);
     }
     void initSensorDataID()
     {
@@ -321,7 +326,7 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
 }
 
 // Request Relative Pose To NDT_matching node
-void requestRelativeFactor(int source_time_step, int dest_time_step)
+geometry_msgs::Pose requestNDTMatching(int source_time_step, int dest_time_step, bool directly_add_factor)
 {
     pg_editor::GetNDTMatchingResult matching_result_service;
     Transform T_source, T_dest, T_lidar;
@@ -354,23 +359,50 @@ void requestRelativeFactor(int source_time_step, int dest_time_step)
 
     if (matching_result_client.call(matching_result_service))
     {
-        responseRelativeFactor(matching_result_service);
+        if(directly_add_factor){
+            responseRelativeFactor(matching_result_service);
+        }
     }
     // ROS_WARN("pc size print");
     // ROS_INFO("%d %d", matching_result_service.request.pointcloud1.data.size(), matching_result_service.request.pointcloud2.data.size());
+    ROS_WARN("NDT result!!!");
+    printPose(matching_result_service.response.result_pose);
+    return matching_result_service.response.result_pose;
 }
 
-void visualizePointclouds()
+// void visualizePointclouds()
+// {
+//     for (int i = 0; i < frame_num; i++)
+//     {
+//         if (pc_publish_or_not.at(i))
+//         {
+//             pointcloud_vec_.at(i).header.stamp = ros::Time::now();
+//             pointcloud_vec_.at(i).header.frame_id = "sensor_frame"+std::to_string(i);
+//             pc_publisher_vec_.at(i).publish(pointcloud_vec_.at(i));
+//         }
+//     }
+// }
+
+void visualize3Pointclouds()
 {
-    for (int i = 0; i < frame_num; i++)
-    {
-        if (pc_publish_or_not.at(i))
-        {
-            pointcloud_vec_.at(i).header.stamp = ros::Time::now();
-            pointcloud_vec_.at(i).header.frame_id = "sensor_frame"+std::to_string(i);
-            pc_publisher_vec_.at(i).publish(pointcloud_vec_.at(i));
-        }
+    ROS_WARN("ref in: %d %d", index_of_ref_pc, index_of_in_pc);
+
+    if(index_of_ref_pc==-1||index_of_in_pc==-1){
+        ROS_WARN("wrong frame index");
+        return;
     }
+
+    sensor_msgs::PointCloud2 pointcloud_ref = pointcloud_vec_.at(index_of_ref_pc);
+    sensor_msgs::PointCloud2 pointcloud_in = pointcloud_vec_.at(index_of_in_pc);
+
+    pointcloud_ref.header.stamp = ros::Time::now();
+    pointcloud_ref.header.frame_id = "sensor_frame_ref";
+    pc_ref_pub.publish(pointcloud_ref);
+
+    pointcloud_in.header.stamp = ros::Time::now();
+    pointcloud_in.header.frame_id = "sensor_frame_in";
+    pc_in_pub.publish(pointcloud_in);
+    ros::spinOnce();
 }
 
 void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::TransformBroadcaster &sensor_broadcaster)
@@ -389,21 +421,27 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     // if(*sensor_var == *Pose::Ptr())
     //     ROS_WARN("Can not find %s/%s sensor variable in graph",sensor_id.vehicle.c_str(), sensor_id.frame_id.c_str());
     auto sensor_T = sensor_var->getData();
-
     auto sensor_tf = poseToTfTransform(transformToPose(sensor_T));
+    //(before)publish transforms to all frames
+    //(changed)publish transforms to only ref/in frames
+    pg_editor::TransformInfo transforminfo;
     for (int i = 0; i < frame_num; i++)
     {
-        broadcaster.sendTransform(tf::StampedTransform(poseToTfTransform(pose_array.poses.at(i)), ros::Time::now(), "map", "frame"+std::to_string(i)));
-        sensor_broadcaster.sendTransform(tf::StampedTransform(sensor_tf, ros::Time::now(), "frame"+std::to_string(i), "sensor_frame"+std::to_string(i)));
-        pg_editor::TransformInfo transforminfo;
         transforminfo.pose = pose_array.poses.at(i);
         transforminfo.frame_num = i;
         transforminfo_pub.publish(transforminfo);
     }
-    ros::spinOnce();
+    if(index_of_ref_pc!=-1&&index_of_in_pc!=-1){
+        broadcaster.sendTransform(tf::StampedTransform(poseToTfTransform(pose_array.poses.at(index_of_ref_pc)), ros::Time::now(), "map", "frame_ref"));
+        sensor_broadcaster.sendTransform(tf::StampedTransform(sensor_tf, ros::Time::now(), "frame_ref", "sensor_frame_ref"));
 
+        broadcaster.sendTransform(tf::StampedTransform(poseToTfTransform(pose_array.poses.at(index_of_in_pc)), ros::Time::now(), "map", "frame_in"));
+        sensor_broadcaster.sendTransform(tf::StampedTransform(sensor_tf, ros::Time::now(), "frame_in", "sensor_frame_in"));
+            
+        ros::spinOnce();
+    }
     visualizeGraph(graph, edge_pub, pose_pub, pose_pc_pub, "map");
-    visualizePointclouds();
+    visualize3Pointclouds();
 }
 // TOSET
 void addAbsFactorFromIMUPose(Graph &graph)
@@ -433,7 +471,7 @@ void addIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
         pc_publish_or_not.at(i) = true;
     }
     add_or_remove = ADD;
-    requestRelativeFactor(msg->data.at(0), msg->data.at(1));
+    requestNDTMatching(msg->data.at(0), msg->data.at(1), true);
 }
 
 void removeIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
@@ -445,7 +483,7 @@ void removeIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
         pc_publish_or_not.at(i) = true;
     }
     add_or_remove = REMOVE;
-    requestRelativeFactor(msg->data.at(0), msg->data.at(1));
+    requestNDTMatching(msg->data.at(0), msg->data.at(1), true);
 }
 
 void pcPublishIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
@@ -456,13 +494,13 @@ void pcPublishIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
     }
 }
 void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_ECEF_pose_result_srv){
-    ROS_WARN("ecef result size: %d", get_ECEF_pose_result_srv.response.pose_array.poses.size());
-    geometry_msgs::Pose pose0 = get_ECEF_pose_result_srv.response.pose_array.poses.at(0);
-    pg_lib::Transform transform0 = poseToTransform(get_ECEF_pose_result_srv.response.pose_array.poses.at(0)), temp_transform;
+    ROS_WARN("ecef result size: %d", get_ECEF_pose_result_srv.response.imu_pose_array.poses.size());
+    geometry_msgs::Pose pose0 = get_ECEF_pose_result_srv.response.imu_pose_array.poses.at(0);
+    pg_lib::Transform transform0 = poseToTransform(get_ECEF_pose_result_srv.response.imu_pose_array.poses.at(0)), temp_transform;
     IMU_transform_vec_.push_back(pg_lib::Transform::eye());
     IMU_pose_vec_.push_back(transformToPose(pg_lib::Transform::eye()));
-    for(int i=1; i<get_ECEF_pose_result_srv.response.pose_array.poses.size(); i++){
-        temp_transform = poseToTransform(get_ECEF_pose_result_srv.response.pose_array.poses.at(i));
+    for(int i=1; i<get_ECEF_pose_result_srv.response.imu_pose_array.poses.size(); i++){
+        temp_transform = poseToTransform(get_ECEF_pose_result_srv.response.imu_pose_array.poses.at(i));
         IMU_transform_vec_.push_back(transform0.inv()*temp_transform); 
         IMU_pose_vec_.push_back(transformToPose(transform0.inv()*temp_transform));
     }
@@ -477,9 +515,9 @@ bool getCalibrationCallback(pg_editor_panel::GetCalibration::Request &req, pg_ed
     id_in.frame_id = req.sensor_in;
     id_in.vehicle = vehicle;    
 
-    Pose::Ptr pose_ref = (*graph_ptr).getSensorVariable(id_ref, true);
-    Pose::Ptr pose_in = (*graph_ptr).getSensorVariable(id_in, true);
-
+    Pose::Ptr pose_ref = (*graph_ptr).getSensorVariable(id_ref);
+    Pose::Ptr pose_in = (*graph_ptr).getSensorVariable(id_in);
+    
     // if(pose_ref==nullptr||pose_in==nullptr){
     //     res.validate_sensor_name = false;
     // }
@@ -505,9 +543,25 @@ bool getCalibrationCallback(pg_editor_panel::GetCalibration::Request &req, pg_ed
     return true;
 }
 
-//TO CHANGE
-void addEdges(){
+float getDistanceBetweenVariables(int num1, int num2){
     pointcloud_tools::SensorDataID temp_id1=init_id, temp_id2=init_id;
+    temp_id1.time_step = num1;
+    temp_id2.time_step = num2;
+
+    Pose::Ptr pose_1 = (*graph_ptr).getVariable<Pose>(temp_id1);
+    Pose::Ptr pose_2 = (*graph_ptr).getVariable<Pose>(temp_id2);
+    
+    cv::Matx<Scalar, 3, 1> translation1 = (*pose_1).getData().getTranslation();
+    cv::Matx<Scalar, 3, 1> translation2 = (*pose_2).getData().getTranslation();
+    cv::Matx<Scalar, 3, 1> translation_diff = translation1 - translation2;
+
+    ROS_INFO("%f %f %f", translation1(0,0), translation1(1,0), translation1(2,0));
+    ROS_INFO("%f %f %f", translation2(0,0), translation2(1,0), translation2(2,0));
+
+    return sqrt(translation_diff.ddot(translation_diff));
+}
+
+void addEdges(){
     pointcloud_tools::SensorFrameID sensor_id;
     if(is_single_lidar_imu_graph){
         sensor_id.frame_id = sensor_vec_.at(0);
@@ -519,34 +573,91 @@ void addEdges(){
         H(i, i) = 0.00001;  
     for(int i=0; i<frame_num; i++){
         for(int j=i+1; j<frame_num; j++){
-            ROS_WARN("%d %d", i,j);
-            //ros::Duration(0.001).sleep();
-            requestRelativeFactor(i, j);
+            if(getDistanceBetweenVariables(i, j)<edge_distance_threshold){
+                ROS_WARN("%f", getDistanceBetweenVariables(i, j));
+                ROS_WARN("%d %d", i,j);
+                requestNDTMatching(i, j, true);
+            }
         }
     }
+}
+
+bool is_number(const std::string& s)
+{
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+}
+
+bool isRemoveFactorOperation(){
+
+}
+
+bool isAddFactorOperation(pg_editor::InitialConfigurationConfig &config){
+    return config.add_frame_num_in.compare("")!=0&&config.add_frame_num_ref.compare("")!=0&&(config.Add||config.Match);
+}
+
+bool isConfigurationSetDone(){
+    return root_dirname_.compare("")!=0&&bag_time.compare("")!=0&&sensor_num!=0;
+}
+
+void redefineRefToInTransformByNDT(geometry_msgs::Pose &new_pose){
+    tf::TransformBroadcaster broadcaster;
+    visualization_msgs::Marker marker;
+    geometry_msgs::PoseArray pose_array;
+    std::vector<std::size_t> indices;
+    (*graph_ptr).createMsgToVisualize(marker, pose_array, indices);
+    tf::Transform map_to_in_tf_transform;
+    ROS_WARN("pose Results!");
+    printPose(pose_array.poses.at(index_of_ref_pc));
+    printPose(new_pose);
+    map_to_in_tf_transform = poseToTfTransform(pose_array.poses.at(index_of_ref_pc))*poseToTfTransform(new_pose);
+    broadcaster.sendTransform(tf::StampedTransform(map_to_in_tf_transform, ros::Time::now(), "map", "frame_in"));
+    ros::spinOnce();
 }
 
 void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t level)
 {
     ROS_INFO("config call back called");
-    root_dirname_ = config.root_dirname;
-    bag_time = init_id.bag_time = config.bag_time;
-    vehicle = init_id.vehicle = config.vehicle;
-    max_iteration = config.max_iteration;
-    if(config.load_single_lidar_imu_graph){
-        sensor_num = 1;
-        sensor_vec_.push_back(config.lidar_sensor);
-        init_id.sensor = config.lidar_sensor;
-        is_single_lidar_imu_graph = true;
-    }
-    if(root_dirname_.compare("")!=0&&bag_time.compare("")!=0&&sensor_num!=0)
+    // For DEBUG
+    // root_dirname_ = config.root_dirname;
+    // bag_time = init_id.bag_time = config.bag_time;
+    // vehicle = init_id.vehicle = config.vehicle;
+    // max_iteration = config.max_iteration;
+    // edge_distance_threshold = config.edge_distance_threshold;
+    // if(config.load_single_lidar_imu_graph){
+    //     sensor_num = 1;
+    //     sensor_vec_.push_back(config.lidar_sensor);
+    //     init_id.sensor = config.lidar_sensor;
+    //     is_single_lidar_imu_graph = true;
+    // }
+    if(!isConfigurationSetDone())
     {
-        configuration_set_done = true;
+        configuration_set_done = false;
+        return;
+    }
+    configuration_set_done = true;
+    if(isAddFactorOperation(config)){
+        ROS_INFO("is add factor operation");
+        if(config.Match){
+            index_of_ref_pc = std::stoi(config.add_frame_num_ref);
+            index_of_in_pc = std::stoi(config.add_frame_num_in);
+            ROS_INFO("match called %d %d", index_of_ref_pc, index_of_in_pc);
+            geometry_msgs::Pose new_pose = requestNDTMatching(index_of_ref_pc, index_of_in_pc, false);
+            redefineRefToInTransformByNDT(new_pose);
+            visualize3Pointclouds();
+            config.Match = false;
+        }
+        else if(config.Add){
+            requestNDTMatching(index_of_ref_pc, index_of_in_pc, true);
+            config.Add = false;
+        }
+    }
+    else if(isRemoveFactorOperation()){
+
     }
 }
-
 void setFrameNum(){
-    //TO CHANGE
     int cnt = 0;
     std::string path = root_dirname_+vehicle+"/"+bag_time+"/"+sensor_vec_.at(0)+"/";
     for (const auto & entry : std::experimental::filesystem::directory_iterator(path)){
@@ -554,7 +665,6 @@ void setFrameNum(){
     }
     frame_num = cnt;
     ROS_WARN("frame number %d", frame_num);
-    //frame_num = 12;
 }
 
 //send configuration to data_reader_server node
@@ -570,6 +680,19 @@ void sendConfiguration(){
     }
     send_configuration_client.call(send_configuration_srv);
 }
+
+void forDebugSetConfiguration(){
+    root_dirname_ = "/home/rideflux/v5_1_sample_data_1/";
+    bag_time = init_id.bag_time = "2022-07-14-11-46-25";
+    vehicle = init_id.vehicle = "solati_v5_1";
+    max_iteration = 100;
+    edge_distance_threshold = 10;
+    sensor_num = 1;
+    sensor_vec_.push_back("pandar64_0");
+    init_id.sensor = "pandar64_0"; 
+    is_single_lidar_imu_graph = true;
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
@@ -583,10 +706,16 @@ int main(int argc, char **argv)
 
     server_.setCallback(configCallback);
 
+    //FOR DEBUG
+    configuration_set_done = true;
     while(!configuration_set_done){
         ros::spinOnce();
         ros::Duration(0.01).sleep();
     }
+
+    //FOR DEBUG
+    forDebugSetConfiguration();
+
     graph.setMaxIteration(max_iteration);
 
     ROS_INFO("config set done");
@@ -594,13 +723,10 @@ int main(int argc, char **argv)
 
     send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
     sendConfiguration();
-
-    for(int i=0; i<frame_num; i++){
-        pc_publish_or_not.push_back(true);
-    }
-
+    
     initconfiguration::initPointclouds();
     initconfiguration::initPointcloudPublisherList(nh);
+    initconfiguration::init3PointcloudPublisherList(nh);
     initconfiguration::initSensorDataID();
 
     ros::ServiceClient Tf_broadcast_info_client = nh.serviceClient<pg_editor::TfBroadcastInfo>("/Tf_broadcast_info");
@@ -643,6 +769,8 @@ int main(int argc, char **argv)
 
     tf::TransformBroadcaster broadcaster;
     tf::TransformBroadcaster sensor_broadcaster;
+
+    addEdges();
 
     ROS_WARN("optimize graph");
 

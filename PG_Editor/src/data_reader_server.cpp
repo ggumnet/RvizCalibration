@@ -233,7 +233,7 @@ bool ECEFPoseResultCallback(pg_editor::GetImuPoseResult::Request &req, pg_editor
     ROS_WARN("ecef size %d", ECEF_transforms_vec_.size());
     for(int i=0; i<ECEF_transforms_vec_.size(); i++)
     {
-        res.pose_array.poses.push_back(transformToPose(ECEF_transforms_vec_.at(i)));
+        res.imu_pose_array.poses.push_back(transformToPose(ECEF_transforms_vec_.at(i)));
     }
     return true;
 }

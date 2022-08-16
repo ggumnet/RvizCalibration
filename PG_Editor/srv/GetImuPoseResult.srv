@@ -1,2 +1,2 @@
 ---
-geometry_msgs/PoseArray pose_array
+geometry_msgs/PoseArray imu_pose_array

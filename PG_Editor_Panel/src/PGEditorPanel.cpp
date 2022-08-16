@@ -11,10 +11,10 @@ namespace pg_editor_panel
     upload_client_ = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/upload_pc_tree");
     upload_released_client_ = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/upload_pc_tree_released");
     add_factor_client = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/add_factor");
-    optimize_client = nh.serviceClient<std_srvs::Empty>("/pg_editor_panel/optimize");
     get_calibration_client = nh.serviceClient<pg_editor_panel::GetCalibration>("/pg_editor_panel/get_calibration");
     add_msg_pubs = nh.advertise<std_msgs::Empty>("/pg_editor_panel/add", 1);
     remove_msg_pubs = nh.advertise<std_msgs::Empty>("/pg_editor_panel/remove", 1);
+    optimize_msg_pubs = nh.advertise<std_msgs::Empty>("/pg_editor_panel/optimize", 1);
 
     QHBoxLayout *mainLayout = new QHBoxLayout;
     QVBoxLayout *rightLayout = new QVBoxLayout;
@@ -40,14 +40,18 @@ namespace pg_editor_panel
     QPushButton *AddFactorButton = new QPushButton(tr("Add Factor"));
     AddFactorButton->setStyleSheet("color: white; background-color: rgb(180,0,180); border-radius: 5px; height: 30px; margin-bottom: 5px;");
     connect(AddFactorButton, SIGNAL(clicked()), this, SLOT(addFactor()));
-
     rightLayout->addWidget(AddFactorButton);
 
     QPushButton *RemoveButton = new QPushButton(tr("Remove Factor"));
     RemoveButton->setStyleSheet("color: white; background-color: rgb(0,180,180); border-radius: 5px; height: 30px; margin-bottom: 5px;");
     connect(RemoveButton, SIGNAL(clicked()), this, SLOT(removeFactor()));
-
     rightLayout->addWidget(RemoveButton);
+
+    QPushButton *OptimizeButton = new QPushButton(tr("Optimize"));
+    OptimizeButton->setStyleSheet("color: white; background-color: rgb(180,180,0); border-radius: 5px; height: 30px; margin-bottom: 5px;");
+    connect(OptimizeButton, SIGNAL(clicked()), this, SLOT(optimize()));
+    rightLayout->addWidget(OptimizeButton);
+
     rightGroupBox->setLayout(rightLayout);
 
     mainLayout->addWidget(leftGroupBox);
@@ -123,6 +127,13 @@ namespace pg_editor_panel
     std_msgs::Empty empty_msg;
     // publish "/pg_editor_panel/remove"
     remove_msg_pubs.publish(empty_msg);
+  }
+
+  void PGEditorPanel::optimize()
+  {
+    std_msgs::Empty empty_msg;
+    // publish "/pg_editor_panel/remove"
+    optimize_msg_pubs.publish(empty_msg);
   }
 } // namespace pg_editor_panel
 

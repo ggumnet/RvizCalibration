@@ -13,6 +13,10 @@ ros::ServiceClient pointcloud_client;
 ros::ServiceClient matching_result_client, ECEF_pose_result_client, send_configuration_client;
 pg_editor::GetNDTMatchingResult matching_result_service;
 
+ros::Publisher pc_in_pub;
+ros::Publisher pc_ref_pub;
+ros::Publisher map_pc_pub;
+
 std::vector<sensor_msgs::PointCloud2> pointcloud_vec_;
 std::vector<ros::Publisher> pc_publisher_vec_;
 std::vector<Transform> IMU_transform_vec_;
@@ -30,3 +34,6 @@ bool do_optimize = false;
 bool configuration_set_done = false;
 int add_or_remove;
 int max_iteration;
+int edge_distance_threshold;
+
+int index_of_ref_pc = -1, index_of_in_pc = -1;

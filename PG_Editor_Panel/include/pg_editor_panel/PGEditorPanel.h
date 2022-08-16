@@ -71,7 +71,7 @@ private:
   ros::ServiceClient upload_client_, upload_released_client_;
   ros::ServiceClient add_factor_client, optimize_client, get_calibration_client;
   ros::ServiceClient client_export_graph;
-  ros::Publisher remove_msg_pubs, add_msg_pubs;
+  ros::Publisher remove_msg_pubs, add_msg_pubs, optimize_msg_pubs;
   std::string area, proc_path;
   int zone,yymmdd, worker_id;
   QTextEdit *message1;
