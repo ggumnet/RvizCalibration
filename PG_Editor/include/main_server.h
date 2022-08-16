@@ -8,6 +8,7 @@ ros::Publisher edge_pub;
 ros::Publisher pose_pub;
 ros::Publisher pose_pc_pub;
 ros::Publisher transforminfo_pub;
+ros::Publisher arrow_edge_pub;
 
 ros::ServiceClient pointcloud_client;
 ros::ServiceClient matching_result_client, ECEF_pose_result_client, send_configuration_client;

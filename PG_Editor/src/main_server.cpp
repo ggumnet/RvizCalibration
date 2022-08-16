@@ -166,7 +166,7 @@ void setDestFrame(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &f
 }
 void optimizeGraph(Graph &graph)
 {
-    (*graph_ptr).optimize(false);
+    graph.optimize(false);
 }
 void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher &poses_pub, ros::Publisher &pose_pc_pub, std::string frame_id)
 {
@@ -203,6 +203,55 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
         }
     }
     server->applyChanges();
+}
+
+geometry_msgs::Point vector3toPoint(tf::Vector3 vector3)
+{
+    geometry_msgs::Point point;
+    point.x = vector3.getX();
+    point.y = vector3.getY();
+    point.z = vector3.getZ();
+    return point;
+}
+
+void publishArrowEdge(int index_ref, int index_in)
+{
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "map";
+    marker.header.stamp = ros::Time::now();
+
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.ns = "edges";
+    marker.id = 1;
+
+    marker.points.clear();
+    marker.points.push_back(geometry_msgs::Point());
+    marker.points.push_back(geometry_msgs::Point());
+
+    pointcloud_tools::SensorDataID id_ref = time_step_to_sensorDataID_map[index_ref];
+    pointcloud_tools::SensorDataID id_in = time_step_to_sensorDataID_map[index_in];
+
+    Pose::Ptr pose_ref = (*graph_ptr).getVariable<Pose>(id_ref, true);
+    Pose::Ptr pose_in = (*graph_ptr).getVariable<Pose>(id_in, true);
+
+    cv::Matx<Scalar, 3, 1> translation_ref = (*pose_ref).getData().getTranslation();
+    cv::Matx<Scalar, 3, 1> translation_in = (*pose_in).getData().getTranslation();
+
+    tf::Vector3 origin_ref = tf::Vector3(translation_ref(0,0), translation_ref(1,0), translation_ref(2,0));
+    tf::Vector3 origin_in = tf::Vector3(translation_in(0,0), translation_in(1,0), translation_in(2,0));
+    
+    marker.points.at(0) = vector3toPoint(origin_ref);
+    marker.points.at(1) = vector3toPoint(origin_in);
+
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.2;
+
+    marker.color.a = 1.0;
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 1.0;
+
+    arrow_edge_pub.publish(marker);
 }
 
 bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, Transform &T, ParamMatrix &H)
@@ -370,19 +419,6 @@ geometry_msgs::Pose requestNDTMatching(int source_time_step, int dest_time_step,
     return matching_result_service.response.result_pose;
 }
 
-// void visualizePointclouds()
-// {
-//     for (int i = 0; i < frame_num; i++)
-//     {
-//         if (pc_publish_or_not.at(i))
-//         {
-//             pointcloud_vec_.at(i).header.stamp = ros::Time::now();
-//             pointcloud_vec_.at(i).header.frame_id = "sensor_frame"+std::to_string(i);
-//             pc_publisher_vec_.at(i).publish(pointcloud_vec_.at(i));
-//         }
-//     }
-// }
-
 void visualize3Pointclouds()
 {
     ROS_WARN("ref in: %d %d", index_of_ref_pc, index_of_in_pc);
@@ -466,10 +502,6 @@ void addIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 {
     ROS_INFO("Add factor");
     // publish "/relative_frame"
-    for (int i = 0; i < frame_num; i++)
-    {
-        pc_publish_or_not.at(i) = true;
-    }
     add_or_remove = ADD;
     requestNDTMatching(msg->data.at(0), msg->data.at(1), true);
 }
@@ -477,22 +509,10 @@ void addIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 void removeIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
 {
     ROS_INFO("Remove factor");
-    // publish "/relative_frame"
-    for (int i = 0; i < frame_num; i++)
-    {
-        pc_publish_or_not.at(i) = true;
-    }
     add_or_remove = REMOVE;
     requestNDTMatching(msg->data.at(0), msg->data.at(1), true);
 }
 
-void pcPublishIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
-{
-    for (int i = 0; i < frame_num; i++)
-    {
-        pc_publish_or_not.at(i) = msg->data.at(i) == 1;
-    }
-}
 void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_ECEF_pose_result_srv){
     ROS_WARN("ecef result size: %d", get_ECEF_pose_result_srv.response.imu_pose_array.poses.size());
     geometry_msgs::Pose pose0 = get_ECEF_pose_result_srv.response.imu_pose_array.poses.at(0);
@@ -646,6 +666,7 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
             geometry_msgs::Pose new_pose = requestNDTMatching(index_of_ref_pc, index_of_in_pc, false);
             redefineRefToInTransformByNDT(new_pose);
             visualize3Pointclouds();
+            publishArrowEdge(index_of_ref_pc, index_of_in_pc);
             config.Match = false;
         }
         else if(config.Add){
@@ -693,6 +714,10 @@ void forDebugSetConfiguration(){
     is_single_lidar_imu_graph = true;
 }
 
+void optimizeMsgCallback(const std_msgs::EmptyConstPtr &msg){
+    (*graph_ptr).optimize(false);
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
@@ -723,7 +748,7 @@ int main(int argc, char **argv)
 
     send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
     sendConfiguration();
-    
+
     initconfiguration::initPointclouds();
     initconfiguration::initPointcloudPublisherList(nh);
     initconfiguration::init3PointcloudPublisherList(nh);
@@ -742,11 +767,12 @@ int main(int argc, char **argv)
     edge_pub = nh.advertise<visualization_msgs::Marker>("/graph_edge", 1, true);
     pose_pub = nh.advertise<geometry_msgs::PoseArray>("/graph_pose", 1, true);
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/graph_pose_pc", 1, true);
+    arrow_edge_pub = nh.advertise<visualization_msgs::Marker>("/edge_arrow", 1);
     transforminfo_pub = nh.advertise<pg_editor::TransformInfo>("/transform_info", 1, true); //for publishing clicked arrow
 
     ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
     ros::Subscriber remove_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/remove_edge_index_array", 10, removeIndexArrayCallback);
-    ros::Subscriber pc_publish_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/pc_publish_index_array", 1, pcPublishIndexArrayCallback);
+    ros::Subscriber optimize_msg_subs = nh.subscribe("/pg_editor_panel/optimize", 1, optimizeMsgCallback);
 
     ros::ServiceServer get_calibration_result_service = nh.advertiseService("/pg_editor_panel/get_calibration", getCalibrationCallback);
 
@@ -774,6 +800,7 @@ int main(int argc, char **argv)
 
     ROS_WARN("optimize graph");
 
+    //true -> print sensor values
     graph.optimize(true);
 
     while (ros::ok())

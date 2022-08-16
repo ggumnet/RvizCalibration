@@ -12,8 +12,7 @@
 #include "configurations.h"
 #include "read_configuration.h"
 
-std_msgs::Int32MultiArray index_array;
-ros::Publisher pc_publish_index_pubs, arrow_edge_pubs, add_index_pubs, remove_index_pubs;
+ros::Publisher pc_publish_index_pubs, add_index_pubs, remove_index_pubs;
 std::map<int, tf::Vector3> time_step_to_origin_map;
 int index1, index2;
 bool index_pair_done = true, first_index_done = false;
@@ -70,44 +69,6 @@ int findClosestPoint(tf::Vector3 new_vector)
     return index;
 }
 
-geometry_msgs::Point vector3toPoint(tf::Vector3 vector3)
-{
-    geometry_msgs::Point point;
-    point.x = vector3.getX();
-    point.y = vector3.getY();
-    point.z = vector3.getZ();
-    return point;
-}
-
-void publishArrowEdge(int index1, int index2)
-{
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = "map";
-    marker.header.stamp = ros::Time::now();
-
-    marker.type = visualization_msgs::Marker::ARROW;
-    marker.ns = "edges";
-    marker.id = 1;
-
-    marker.points.clear();
-    marker.points.push_back(geometry_msgs::Point());
-    marker.points.push_back(geometry_msgs::Point());
-
-    tf::Vector3 origin1 = time_step_to_origin_map[index1], origin2 = time_step_to_origin_map[index2];
-    marker.points.at(0) = vector3toPoint(origin1);
-    marker.points.at(1) = vector3toPoint(origin2);
-
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.2;
-
-    marker.color.a = 1.0;
-    marker.color.r = 0.0;
-    marker.color.g = 1.0;
-    marker.color.b = 1.0;
-
-    arrow_edge_pubs.publish(marker);
-}
-
 // publish which pointcloud to publish and publish arrow marker
 void aClickCallback(const geometry_msgs::PointConstPtr &msg)
 {
@@ -116,25 +77,15 @@ void aClickCallback(const geometry_msgs::PointConstPtr &msg)
     ROS_INFO("closest index: %d", index);
 
     first_index_done = true;
-
-    for (int i = 0; i < frame_num; i++)
-    {
-        index_array.data.at(i) = 0;
-    }
+    
     if (index_pair_done)
     {
         index_pair_done = false;
         index1 = index;
-        index_array.data.at(index) = 1;
-        pc_publish_index_pubs.publish(index_array);
     }
     else
     {
         index2 = index;
-        index_array.data.at(index1) = 1;
-        index_array.data.at(index2) = 1;
-        pc_publish_index_pubs.publish(index_array);
-        publishArrowEdge(index1, index2);
         index_pair_done = true;
     }
 }
@@ -153,11 +104,6 @@ void addMsgCallback(const std_msgs::EmptyConstPtr &msg)
     add_msg.data.push_back(index1);
     add_msg.data.push_back(index2);
     add_index_pubs.publish(add_msg);
-    for (int i = 0; i < frame_num; i++)
-    {
-        index_array.data.at(i) = 1;
-    }
-    pc_publish_index_pubs.publish(index_array);
 }
 
 void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
@@ -174,11 +120,6 @@ void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
     remove_msg.data.push_back(index1);
     remove_msg.data.push_back(index2);
     remove_index_pubs.publish(remove_msg);
-    for (int i = 0; i < frame_num; i++)
-    {
-        index_array.data.at(i) = 1;
-    }
-    pc_publish_index_pubs.publish(index_array);
 }
 
 int main(int argc, char **argv)
@@ -191,17 +132,12 @@ int main(int argc, char **argv)
     ros::Subscriber transforminfo_subs = nh.subscribe("/transform_info", frame_num, transformInfoCallback);
 
     pc_publish_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("/pc_publish_index_array", 1);
-    arrow_edge_pubs = nh.advertise<visualization_msgs::Marker>("/edge_arrow", 1);
     add_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("/add_edge_index_array", 1, true);
     remove_index_pubs = nh.advertise<std_msgs::Int32MultiArray>("/remove_edge_index_array", 1, true);
 
     ROS_INFO("a click done");
 
     readConfiguration();
-    for (int i = 0; i < frame_num; i++)
-    {
-        index_array.data.push_back(0);
-    }
     initconfiguration::initOriginMap();
 
     ROS_INFO("a click done");

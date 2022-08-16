@@ -118,21 +118,18 @@ namespace pg_editor_panel
   void PGEditorPanel::addFactor()
   {
     std_msgs::Empty empty_msg;
-    // publish "/pg_editor_panel/add"
     add_msg_pubs.publish(empty_msg);
   }
 
   void PGEditorPanel::removeFactor()
   {
     std_msgs::Empty empty_msg;
-    // publish "/pg_editor_panel/remove"
     remove_msg_pubs.publish(empty_msg);
   }
 
   void PGEditorPanel::optimize()
   {
     std_msgs::Empty empty_msg;
-    // publish "/pg_editor_panel/remove"
     optimize_msg_pubs.publish(empty_msg);
   }
 } // namespace pg_editor_panel
