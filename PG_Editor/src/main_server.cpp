@@ -689,6 +689,7 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
         config.Add = false;
         return;
     }
+    publishArrowEdge(index_of_ref_pc, index_of_in_pc);
 
     if(config.Match){
         ROS_INFO("match called %d %d", index_of_ref_pc, index_of_in_pc);

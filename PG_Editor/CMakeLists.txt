@@ -104,15 +104,6 @@ target_link_libraries(ndt_matching_server
 )
 add_dependencies(ndt_matching_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-add_executable(a_click_receiver_node src/a_click_receiver_node.cpp)
-target_link_libraries(a_click_receiver_node
-  # ${rf_lib}
-  ${catkin_LIBRARIES}
-  ${MKL_LIBRARIES}
-  # ${TBB_LIBRARIES}
-)
-add_dependencies(a_click_receiver_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
 add_executable(data_reader_server src/data_reader_server.cpp)
 target_link_libraries(data_reader_server
   # ${rf_lib}
