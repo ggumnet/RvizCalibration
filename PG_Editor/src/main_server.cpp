@@ -1,6 +1,7 @@
 // Contain main graph
 // optimize graph and visualize it(publish pc and markers of graph)
 
+#include <stdexcept>
 #include <ros/ros.h>
 #include <pg_lib/graph.h>
 #include <visualization_msgs/Marker.h>
@@ -138,6 +139,16 @@ namespace markerhandling
         server->insert(int_marker);
         server->applyChanges();
     }
+    void setFirst(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
+        ROS_INFO("set first");
+        return;
+        ROS_INFO("set first: %d", feedback.get()->menu_entry_id);
+    }
+    void setSecond(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
+        ROS_INFO("set second");
+        return;
+        ROS_INFO("set second: %d", feedback.get()->menu_entry_id);
+    }
     MenuHandler initMenu(geometry_msgs::Pose pose)
     {
         MenuHandler menu_handler;
@@ -150,6 +161,8 @@ namespace markerhandling
         menu_handler.insert(pose_menu, "qy " + std::to_string(pose.orientation.y));
         menu_handler.insert(pose_menu, "qz " + std::to_string(pose.orientation.z));
         menu_handler.insert(pose_menu, "qw " + std::to_string(pose.orientation.w));
+        menu_handler.insert("Set First", &setFirst);
+        menu_handler.insert("Set Second", &setSecond);
         return menu_handler;
     }
 }
@@ -427,7 +440,6 @@ void visualize3Pointclouds()
         ROS_WARN("wrong frame index");
         return;
     }
-
     sensor_msgs::PointCloud2 pointcloud_ref = pointcloud_vec_.at(index_of_ref_pc);
     sensor_msgs::PointCloud2 pointcloud_in = pointcloud_vec_.at(index_of_in_pc);
 
@@ -618,7 +630,7 @@ bool isAddFactorOperation(pg_editor::InitialConfigurationConfig &config){
 }
 
 bool isConfigurationSetDone(){
-    return root_dirname_.compare("")!=0&&bag_time.compare("")!=0&&sensor_num!=0;
+    return root_dirname_.compare("")!=0&&bag_time.compare("")!=0&&sensor_num!=0&&setFrameNum();
 }
 
 void redefineRefToInTransformByNDT(geometry_msgs::Pose &new_pose){
@@ -678,14 +690,21 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
 
     }
 }
-void setFrameNum(){
+bool setFrameNum(){
     int cnt = 0;
     std::string path = root_dirname_+vehicle+"/"+bag_time+"/"+sensor_vec_.at(0)+"/";
-    for (const auto & entry : std::experimental::filesystem::directory_iterator(path)){
-        cnt++;
+    try{
+        for (const auto & entry : std::experimental::filesystem::directory_iterator(path)){
+            cnt++;
+        }
+    }
+    catch(std::experimental::filesystem::filesystem_error& e){
+        ROS_WARN("Wrong Path Inserted!!");
+        return false;
     }
     frame_num = cnt;
     ROS_WARN("frame number %d", frame_num);
+    return true;
 }
 
 //send configuration to data_reader_server node
@@ -744,7 +763,7 @@ int main(int argc, char **argv)
     graph.setMaxIteration(max_iteration);
 
     ROS_INFO("config set done");
-    setFrameNum();
+    //setFrameNum();
 
     send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
     sendConfiguration();

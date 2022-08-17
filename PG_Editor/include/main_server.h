@@ -38,3 +38,5 @@ int max_iteration;
 int edge_distance_threshold;
 
 int index_of_ref_pc = -1, index_of_in_pc = -1;
+
+bool setFrameNum();
