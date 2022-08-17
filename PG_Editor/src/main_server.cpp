@@ -44,6 +44,7 @@ using namespace pg_lib;
 #define ADD 0
 #define REMOVE 1
 #define COST_TYPE Cost::TYPE::SQUARED
+#define INDEX_NOT_SET -1
 
 //Reference frame: "map" frame
 
@@ -227,6 +228,14 @@ geometry_msgs::Point vector3toPoint(tf::Vector3 vector3)
     return point;
 }
 
+tf::Vector3 getOriginFromFrameIndex(int index){
+    pointcloud_tools::SensorDataID id = time_step_to_sensorDataID_map[index];
+    Pose::Ptr pose = (*graph_ptr).getVariable<Pose>(id, true);
+    cv::Matx<Scalar, 3, 1> translation = (*pose).getData().getTranslation();
+    tf::Vector3 origin = tf::Vector3(translation(0,0), translation(1,0), translation(2,0));
+    return origin;
+}
+
 void publishArrowEdge(int index_ref, int index_in)
 {
     visualization_msgs::Marker marker;
@@ -241,17 +250,8 @@ void publishArrowEdge(int index_ref, int index_in)
     marker.points.push_back(geometry_msgs::Point());
     marker.points.push_back(geometry_msgs::Point());
 
-    pointcloud_tools::SensorDataID id_ref = time_step_to_sensorDataID_map[index_ref];
-    pointcloud_tools::SensorDataID id_in = time_step_to_sensorDataID_map[index_in];
-
-    Pose::Ptr pose_ref = (*graph_ptr).getVariable<Pose>(id_ref, true);
-    Pose::Ptr pose_in = (*graph_ptr).getVariable<Pose>(id_in, true);
-
-    cv::Matx<Scalar, 3, 1> translation_ref = (*pose_ref).getData().getTranslation();
-    cv::Matx<Scalar, 3, 1> translation_in = (*pose_in).getData().getTranslation();
-
-    tf::Vector3 origin_ref = tf::Vector3(translation_ref(0,0), translation_ref(1,0), translation_ref(2,0));
-    tf::Vector3 origin_in = tf::Vector3(translation_in(0,0), translation_in(1,0), translation_in(2,0));
+    tf::Vector3 origin_ref = getOriginFromFrameIndex(index_ref);
+    tf::Vector3 origin_in = getOriginFromFrameIndex(index_in);
     
     marker.points.at(0) = vector3toPoint(origin_ref);
     marker.points.at(1) = vector3toPoint(origin_in);
@@ -436,7 +436,7 @@ void visualize3Pointclouds()
 {
     ROS_WARN("ref in: %d %d", index_of_ref_pc, index_of_in_pc);
 
-    if(index_of_ref_pc==-1||index_of_in_pc==-1){
+    if(index_of_ref_pc==INDEX_NOT_SET||index_of_in_pc==INDEX_NOT_SET){
         ROS_WARN("wrong frame index");
         return;
     }
@@ -663,31 +663,47 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
     //     init_id.sensor = config.lidar_sensor;
     //     is_single_lidar_imu_graph = true;
     // }
+    global_config_ = config;
     if(!isConfigurationSetDone())
     {
         configuration_set_done = false;
         return;
     }
     configuration_set_done = true;
-    if(isAddFactorOperation(config)){
-        ROS_INFO("is add factor operation");
-        if(config.Match){
-            index_of_ref_pc = std::stoi(config.add_frame_num_ref);
-            index_of_in_pc = std::stoi(config.add_frame_num_in);
-            ROS_INFO("match called %d %d", index_of_ref_pc, index_of_in_pc);
-            geometry_msgs::Pose new_pose = requestNDTMatching(index_of_ref_pc, index_of_in_pc, false);
-            redefineRefToInTransformByNDT(new_pose);
-            visualize3Pointclouds();
-            publishArrowEdge(index_of_ref_pc, index_of_in_pc);
-            config.Match = false;
-        }
-        else if(config.Add){
-            requestNDTMatching(index_of_ref_pc, index_of_in_pc, true);
-            config.Add = false;
-        }
+    if(config.add_frame_num_ref.compare("")==0){
+        index_of_ref_pc = -1;
     }
-    else if(isRemoveFactorOperation()){
+    if(config.add_frame_num_in.compare("")==0){
+        index_of_in_pc = -1;
+    }
+    if(config.add_frame_num_ref.compare("")!=0){
+        index_of_ref_pc = std::stoi(config.add_frame_num_ref);
+    }
+    if(config.add_frame_num_in.compare("")!=0){
+        index_of_in_pc = std::stoi(config.add_frame_num_in);
+    }
 
+    if(index_of_ref_pc==-1||index_of_in_pc==-1){
+        ROS_WARN("Index Not Set Yet");
+        config.Match = false;
+        config.Add = false;
+        return;
+    }
+
+    if(config.Match){
+        ROS_INFO("match called %d %d", index_of_ref_pc, index_of_in_pc);
+        geometry_msgs::Pose new_pose = requestNDTMatching(index_of_ref_pc, index_of_in_pc, false);
+        redefineRefToInTransformByNDT(new_pose);
+        visualize3Pointclouds();
+        publishArrowEdge(index_of_ref_pc, index_of_in_pc);
+        config.Match = false;
+    }
+    if(config.Add){
+        ROS_INFO("add called %d %d", index_of_ref_pc, index_of_in_pc);
+        requestNDTMatching(index_of_ref_pc, index_of_in_pc, true);
+        config.Add = false;
+        config.add_frame_num_ref = "";
+        config.add_frame_num_in = "";
     }
 }
 bool setFrameNum(){
@@ -737,6 +753,95 @@ void optimizeMsgCallback(const std_msgs::EmptyConstPtr &msg){
     (*graph_ptr).optimize(false);
 }
 
+float get3dDistance(tf::Vector3 vector1, tf::Vector3 vector2)
+{
+    return pow(pow(vector1.getX() - vector2.getX(), 2) + pow(vector1.getY() - vector2.getY(), 2) + pow(vector1.getZ() - vector2.getZ(), 2), 0.5);
+}
+
+int findClosestPoint(tf::Vector3 new_vector)
+{
+    float min = INT_MAX, temp;
+    int index;
+    for (int i = 0; i < frame_num; i++)
+    {
+        temp = get3dDistance(new_vector, getOriginFromFrameIndex(i));
+        if (temp < min)
+        {
+            min = temp;
+            index = i;
+        }
+    }
+    return index;
+}
+void setRqtConfigByIndex(){
+    if(index_of_ref_pc == -1) {
+        global_config_.add_frame_num_ref = "";
+    }
+    else{
+        global_config_.add_frame_num_ref = std::to_string(index_of_ref_pc);
+    }
+    if(index_of_in_pc == -1) {
+        global_config_.add_frame_num_in = "";
+    }
+    else{
+        global_config_.add_frame_num_in = std::to_string(index_of_in_pc);
+    }
+    server_ptr_->updateConfig(global_config_);
+}
+
+void aClickCallback(const geometry_msgs::PointConstPtr &msg)
+{
+    ROS_INFO("clicked");
+    int index = findClosestPoint(tf::Vector3(msg->x, msg->y, msg->z));
+    ROS_INFO("closest index: %d", index);
+    
+    if (index_of_ref_pc==INDEX_NOT_SET&&index_of_in_pc==INDEX_NOT_SET)
+    {
+        index_of_ref_pc = index;
+    }
+    else if(index_of_in_pc==INDEX_NOT_SET)
+    {
+        index_of_in_pc = index;
+        publishArrowEdge(index_of_ref_pc, index_of_in_pc);
+    }
+    else if(index_of_ref_pc==INDEX_NOT_SET)
+    {
+        index_of_ref_pc = index;
+        publishArrowEdge(index_of_ref_pc, index_of_in_pc);
+    }
+    else{
+        index_of_ref_pc = index;
+        index_of_in_pc = -1;
+    }
+    setRqtConfigByIndex();
+}
+
+void addMsgCallback(const std_msgs::EmptyConstPtr &msg)
+{
+    ROS_INFO("Add factor");
+    if(index_of_ref_pc==INDEX_NOT_SET||index_of_in_pc==INDEX_NOT_SET){
+        ROS_WARN("Index Not Set Yet");
+        return;
+    }
+    add_or_remove = ADD;
+    requestNDTMatching(index_of_ref_pc, index_of_in_pc, true);
+    index_of_ref_pc = -1;
+    index_of_in_pc = -1;
+}
+
+void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
+{
+    ROS_INFO("Remove factor");
+    if(index_of_ref_pc==INDEX_NOT_SET||index_of_in_pc==INDEX_NOT_SET){
+        ROS_WARN("Index Not Set Yet");
+        return;
+    }
+    add_or_remove = REMOVE;
+    requestNDTMatching(index_of_ref_pc, index_of_in_pc, true);
+    index_of_ref_pc = -1;
+    index_of_in_pc = -1;
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
@@ -746,9 +851,9 @@ int main(int argc, char **argv)
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
 
     dynamic_reconfigure::Server<pg_editor::InitialConfigurationConfig> server_;
-    pg_editor::InitialConfigurationConfig init_config_;
 
     server_.setCallback(configCallback);
+    server_ptr_ = &server_;
 
     //FOR DEBUG
     configuration_set_done = true;
@@ -793,7 +898,11 @@ int main(int argc, char **argv)
 
     ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
     ros::Subscriber remove_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/remove_edge_index_array", 10, removeIndexArrayCallback);
-    ros::Subscriber optimize_msg_subs = nh.subscribe("/pg_editor_panel/optimize", 1, optimizeMsgCallback);
+    
+    ros::Subscriber a_click_subs = nh.subscribe("/rf_tool_a_click", 1, aClickCallback);
+    ros::Subscriber add_msg_subs = nh.subscribe("/pg_editor_panel/add", 1, addMsgCallback);
+    ros::Subscriber remove_msg_subs = nh.subscribe("/pg_editor_panel/remove", 1, removeMsgCallback);
+    ros::Subscriber optimize_msg_subs = nh.subscribe("/pg_editor_panel/optimize", 1, optimizeMsgCallback);    
 
     ros::ServiceServer get_calibration_result_service = nh.advertiseService("/pg_editor_panel/get_calibration", getCalibrationCallback);
 

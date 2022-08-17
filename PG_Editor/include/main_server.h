@@ -39,4 +39,7 @@ int edge_distance_threshold;
 
 int index_of_ref_pc = -1, index_of_in_pc = -1;
 
+pg_editor::InitialConfigurationConfig global_config_;
+
 bool setFrameNum();
+dynamic_reconfigure::Server<pg_editor::InitialConfigurationConfig> *server_ptr_;
