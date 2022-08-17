@@ -162,7 +162,7 @@ namespace markerhandling
         menu_handler.insert(pose_menu, "qz " + std::to_string(pose.orientation.z));
         menu_handler.insert(pose_menu, "qw " + std::to_string(pose.orientation.w));
         menu_handler.insert("Set First", &setFirst);
-        menu_handler.insert("Set Second", &setSecond);
+        //menu_handler.insert("Set Second", &setSecond);
         return menu_handler;
     }
 }
@@ -763,7 +763,9 @@ int main(int argc, char **argv)
     graph.setMaxIteration(max_iteration);
 
     ROS_INFO("config set done");
-    //setFrameNum();
+
+    //FOR DEBUG
+    setFrameNum();
 
     send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
     sendConfiguration();
@@ -819,8 +821,10 @@ int main(int argc, char **argv)
 
     ROS_WARN("optimize graph");
 
+    //FOR DEBUG
     //true -> print sensor values
-    graph.optimize(true);
+    //graph.optimize(true);
+    graph.optimize(false);
 
     while (ros::ok())
     {
