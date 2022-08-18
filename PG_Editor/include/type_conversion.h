@@ -38,6 +38,13 @@ tf::Transform poseToTfTransform(geometry_msgs::Pose pose)
     return transform;
 }
 
-
+geometry_msgs::Point vector3toPoint(tf::Vector3 vector3)
+{
+    geometry_msgs::Point point;
+    point.x = vector3.getX();
+    point.y = vector3.getY();
+    point.z = vector3.getZ();
+    return point;
+}
 
 #endif

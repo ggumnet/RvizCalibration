@@ -12,7 +12,6 @@
 #include <experimental/filesystem>
 
 //srv
-#include <pg_editor/TransformInfo.h>
 #include <pg_editor/RelativeFramesInfo.h>
 #include <pg_editor/RelativePoseInfo.h>
 #include <pg_editor/GetPointcloud.h>
@@ -85,6 +84,7 @@ namespace init
         }
     }
 }
+
 namespace markerhandler
 {
     // make marker at the certain position
@@ -100,7 +100,8 @@ namespace markerhandler
         int_marker.scale = 1;
         return int_marker;
     }
-    // make box according to the size of InteractiveMarker
+
+    // make sphere according to the size of InteractiveMarker
     Marker makeSphere(InteractiveMarker &msg)
     {
         Marker marker;
@@ -128,8 +129,8 @@ namespace markerhandler
         control.markers.push_back(markerhandler::makeSphere(int_marker));
         int_marker.controls.push_back(control);
 
-        server->insert(int_marker);
-        server->applyChanges();
+        marker_server_->insert(int_marker);
+        marker_server_->applyChanges();
     }
     void setFirst(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
         ROS_INFO("set first");
@@ -164,14 +165,17 @@ void setRefFrame(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &fe
 {
     ref_pose = feedback.get()->pose;
 }
+
 void setDestFrame(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
 {
     dest_pose = feedback.get()->pose;
 }
+
 void optimizeGraph(Graph &graph)
 {
     graph.optimize(false);
 }
+
 void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher &poses_pub, ros::Publisher &pose_pc_pub, std::string frame_id)
 {
     visualization_msgs::Marker marker;
@@ -195,27 +199,20 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
 
         edge_pub.publish(marker);
         poses_pub.publish(pose_array);
-        int i = 0;
-        for (auto pose : pose_array.poses)
+        for (int i=0; i<frame_num; i++)
         {
+            auto pose = pose_array.poses.at(i);
             MenuHandler menu_handler;
-            i++;
             markerhandler::makeMenuMarker("marker" + std::to_string(i), pose, frame_id); // make menu marker and add to server
+
+            setMarkerColorByIndex();
+
             // ROS_INFO("done");
             menu_handler = markerhandler::initMenu(pose);
-            menu_handler.apply(*server, "marker" + std::to_string(i)); // apply menu entry to menu marker
+            menu_handler.apply(*marker_server_, "marker" + std::to_string(i)); // apply menu entry to menu marker
         }
     }
-    server->applyChanges();
-}
-
-geometry_msgs::Point vector3toPoint(tf::Vector3 vector3)
-{
-    geometry_msgs::Point point;
-    point.x = vector3.getX();
-    point.y = vector3.getY();
-    point.z = vector3.getZ();
-    return point;
+    marker_server_->applyChanges();
 }
 
 tf::Vector3 getOriginFromFrameIndex(int index){
@@ -245,6 +242,27 @@ void publishArrowEdge(int index_ref, int index_in)
     
     marker.points.at(0) = vector3toPoint(origin_ref);
     marker.points.at(1) = vector3toPoint(origin_in);
+
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.2;
+
+    marker.color.a = 1.0;
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 1.0;
+
+    arrow_edge_pub.publish(marker);
+}
+
+void publishEmptyArrowEdge()
+{
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "map";
+    marker.header.stamp = ros::Time::now();
+
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.ns = "edges";
+    marker.id = 1;
 
     marker.scale.x = 0.1;
     marker.scale.y = 0.2;
@@ -329,6 +347,24 @@ bool addRelativeFactorWithSensor(Graph &graph, pointcloud_tools::SensorDataID &i
     return true;
 }
 
+void addAbsFactorFromIMUPose(Graph &graph)
+{
+    pointcloud_tools::SensorDataID temp_id =init_id;
+    pointcloud_tools::SensorFrameID sensor_id;
+    sensor_id.frame_id = "nov_imu";
+    sensor_id.vehicle = vehicle;
+    Transform T;
+    ParamMatrix H(ParamMatrix::eye());
+
+    for (std::size_t i = 0; i < PARAM_DIM; i++)
+        H(i, i) = 0.00001;  
+    for(int i=0; i<frame_num; i++){
+        temp_id.time_step = i;
+        T = poseToTransform(IMU_pose_vec_.at(i));
+        addAbsFactorWithSensor(graph, temp_id, sensor_id, T, H);
+    }
+}
+
 void removeRelativeFactor(Graph &graph, pointcloud_tools::SensorDataID &id_ref, pointcloud_tools::SensorDataID &id_in, Transform &T, ParamMatrix &H)
 {
     auto pose_ref = graph.getVariable<Pose>(id_ref, true);
@@ -346,8 +382,7 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
 {
     Transform T;
     geometry_msgs::Pose pose = matching_result_service.response.result_pose;
-    
-    //TODO
+
     int frame_num1 = matching_result_service.request.time_step1;
     int frame_num2 = matching_result_service.request.time_step2;
     T(0, 3) = pose.position.x;
@@ -376,6 +411,17 @@ void responseRelativeFactor(pg_editor::GetNDTMatchingResult matching_result_serv
         removeRelativeFactor(*graph_ptr, time_step_to_sensorDataID_map[frame_num1], time_step_to_sensorDataID_map[frame_num2], T, H);
 }
 
+Transform getTransformFromTimestep(int time_step){
+    Transform T;
+    pointcloud_tools::SensorDataID sensor_data_id;
+    sensor_data_id = init_id;
+    sensor_data_id.time_step = time_step;
+    Pose::Ptr pose = (*graph_ptr).getVariable<Pose>(sensor_data_id, true);
+    T.setTranslation((*pose).getData().getTranslation());
+    T.setRotation((*pose).getData().getRotation());
+    return T;
+}
+
 // Request Relative Pose To NDT_matching node
 geometry_msgs::Pose requestNDTMatching(int source_time_step, int dest_time_step, bool directly_add_factor)
 {
@@ -384,21 +430,14 @@ geometry_msgs::Pose requestNDTMatching(int source_time_step, int dest_time_step,
     pointcloud_tools::SensorDataID id_source, id_dest;
     pointcloud_tools::SensorFrameID id_lidar;
 
-    id_source = id_dest = init_id;
-    id_source.time_step = source_time_step;
-    id_dest.time_step = dest_time_step;
-
     id_lidar.frame_id = init_id.sensor;
     id_lidar.vehicle = init_id.vehicle;
 
-    Pose::Ptr pose_source = (*graph_ptr).getVariable<Pose>(id_source, true);
-    Pose::Ptr pose_dest = (*graph_ptr).getVariable<Pose>(id_dest, true);
-    Pose::Ptr pose_lidar = (*graph_ptr).getSensorVariable(id_lidar, true);
+    Pose::Ptr pose_lidar = (*graph_ptr).getSensorVariable(id_lidar, true);  
 
-    T_source.setTranslation((*pose_source).getData().getTranslation());
-    T_source.setRotation((*pose_source).getData().getRotation());
-    T_dest.setTranslation((*pose_dest).getData().getTranslation());
-    T_dest.setRotation((*pose_dest).getData().getRotation());
+    T_source = getTransformFromTimestep(source_time_step);
+    T_dest = getTransformFromTimestep(dest_time_step);
+
     T_lidar.setTranslation((*pose_lidar).getData().getTranslation());
     T_lidar.setRotation((*pose_lidar).getData().getRotation());
 
@@ -425,12 +464,15 @@ void visualize3Pointclouds()
 {
     ROS_WARN("ref in: %d %d", index_of_ref_pc, index_of_in_pc);
 
-    if(index_of_ref_pc==INDEX_NOT_SET||index_of_in_pc==INDEX_NOT_SET){
-        ROS_WARN("wrong frame index");
-        return;
+    sensor_msgs::PointCloud2 pointcloud_ref;
+    sensor_msgs::PointCloud2 pointcloud_in;
+
+    if(index_of_ref_pc!=INDEX_NOT_SET){
+        pointcloud_ref = pointcloud_vec_.at(index_of_ref_pc);
     }
-    sensor_msgs::PointCloud2 pointcloud_ref = pointcloud_vec_.at(index_of_ref_pc);
-    sensor_msgs::PointCloud2 pointcloud_in = pointcloud_vec_.at(index_of_in_pc);
+    if(index_of_in_pc!=INDEX_NOT_SET){
+        pointcloud_in = pointcloud_vec_.at(index_of_in_pc);
+    }
 
     pointcloud_ref.header.stamp = ros::Time::now();
     pointcloud_ref.header.frame_id = "sensor_frame_ref";
@@ -439,6 +481,7 @@ void visualize3Pointclouds()
     pointcloud_in.header.stamp = ros::Time::now();
     pointcloud_in.header.frame_id = "sensor_frame_in";
     pc_in_pub.publish(pointcloud_in);
+
     ros::spinOnce();
 }
 
@@ -459,15 +502,6 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     //     ROS_WARN("Can not find %s/%s sensor variable in graph",sensor_id.vehicle.c_str(), sensor_id.frame_id.c_str());
     auto sensor_T = sensor_var->getData();
     auto sensor_tf = poseToTfTransform(transformToPose(sensor_T));
-    //(before)publish transforms to all frames
-    //(changed)publish transforms to only ref/in frames
-    pg_editor::TransformInfo transforminfo;
-    for (int i = 0; i < frame_num; i++)
-    {
-        transforminfo.pose = pose_array.poses.at(i);
-        transforminfo.frame_num = i;
-        transforminfo_pub.publish(transforminfo);
-    }
     if(index_of_ref_pc!=-1&&index_of_in_pc!=-1){
         broadcaster.sendTransform(tf::StampedTransform(poseToTfTransform(pose_array.poses.at(index_of_ref_pc)), ros::Time::now(), "map", "frame_ref"));
         sensor_broadcaster.sendTransform(tf::StampedTransform(sensor_tf, ros::Time::now(), "frame_ref", "sensor_frame_ref"));
@@ -481,23 +515,6 @@ void publishResults(Graph &graph, tf::TransformBroadcaster &broadcaster, tf::Tra
     visualize3Pointclouds();
 }
 // TOSET
-void addAbsFactorFromIMUPose(Graph &graph)
-{
-    pointcloud_tools::SensorDataID temp_id =init_id;
-    pointcloud_tools::SensorFrameID sensor_id;
-    sensor_id.frame_id = "nov_imu";
-    sensor_id.vehicle = vehicle;
-    Transform T;
-    ParamMatrix H(ParamMatrix::eye());
-
-    for (std::size_t i = 0; i < PARAM_DIM; i++)
-        H(i, i) = 0.00001;  
-    for(int i=0; i<frame_num; i++){
-        temp_id.time_step = i;
-        T = poseToTransform(IMU_pose_vec_.at(i));
-        addAbsFactorWithSensor(graph, temp_id, sensor_id, T, H);
-    }
-}
 
 void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_ECEF_pose_result_srv){
     ROS_WARN("ecef result size: %d", get_ECEF_pose_result_srv.response.imu_pose_array.poses.size());
@@ -510,43 +527,6 @@ void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_ECEF_pose_result_srv){
         IMU_transform_vec_.push_back(transform0.inv()*temp_transform); 
         IMU_pose_vec_.push_back(transformToPose(transform0.inv()*temp_transform));
     }
-}
-bool getCalibrationCallback(pg_editor_panel::GetCalibration::Request &req, pg_editor_panel::GetCalibration::Response &res){
-    Transform T_ref, T_in;
-    pointcloud_tools::SensorFrameID id_ref, id_in;
-
-    id_ref.frame_id = req.sensor_ref;
-    id_ref.vehicle = vehicle;
-
-    id_in.frame_id = req.sensor_in;
-    id_in.vehicle = vehicle;    
-
-    Pose::Ptr pose_ref = (*graph_ptr).getSensorVariable(id_ref);
-    Pose::Ptr pose_in = (*graph_ptr).getSensorVariable(id_in);
-    
-    // if(pose_ref==nullptr||pose_in==nullptr){
-    //     res.validate_sensor_name = false;
-    // }
-
-    T_ref.setTranslation((*pose_ref).getData().getTranslation());
-    T_ref.setRotation((*pose_ref).getData().getRotation());
-
-    T_in.setTranslation((*pose_in).getData().getTranslation());
-    T_in.setRotation((*pose_in).getData().getRotation());
-
-    geometry_msgs::Pose result_pose = transformToPose(T_ref.inv()*T_in);
-
-    res.calibration_result_vec.push_back(result_pose.position.x);
-    res.calibration_result_vec.push_back(result_pose.position.y);
-    res.calibration_result_vec.push_back(result_pose.position.z);
-
-    res.calibration_result_vec.push_back(result_pose.orientation.x);
-    res.calibration_result_vec.push_back(result_pose.orientation.y);
-    res.calibration_result_vec.push_back(result_pose.orientation.z);
-    res.calibration_result_vec.push_back(result_pose.orientation.w);
-
-    res.validate_sensor_name = true;
-    return true;
 }
 
 float getDistanceBetweenVariables(int num1, int num2){
@@ -588,7 +568,7 @@ void addEdges(){
     }
 }
 
-bool is_number(const std::string& s)
+bool isNumber(const std::string& s)
 {
     std::string::const_iterator it = s.begin();
     while (it != s.end() && std::isdigit(*it)) ++it;
@@ -673,12 +653,16 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
         publishArrowEdge(index_of_ref_pc, index_of_in_pc);
         config.Match = false;
     }
+
     if(config.Add){
         ROS_INFO("add called %d %d", index_of_ref_pc, index_of_in_pc);
         requestNDTMatching(index_of_ref_pc, index_of_in_pc, true);
+        publishEmptyArrowEdge();
         config.Add = false;
         config.add_frame_num_ref = "";
         config.add_frame_num_in = "";
+        index_of_ref_pc = -1;
+        index_of_in_pc = -1;
     }
 }
 
@@ -725,13 +709,71 @@ void forDebugSetConfiguration(){
     is_single_lidar_imu_graph = true;
 }
 
+float get3dDistance(tf::Vector3 vector1, tf::Vector3 vector2)
+{
+    return pow(pow(vector1.getX() - vector2.getX(), 2) + pow(vector1.getY() - vector2.getY(), 2) + pow(vector1.getZ() - vector2.getZ(), 2), 0.5);
+}
+
+bool getCalibrationCallback(pg_editor_panel::GetCalibration::Request &req, pg_editor_panel::GetCalibration::Response &res){
+    Transform T_ref, T_in;
+    pointcloud_tools::SensorFrameID id_ref, id_in;
+
+    id_ref.frame_id = req.sensor_ref;
+    id_ref.vehicle = vehicle;
+
+    id_in.frame_id = req.sensor_in;
+    id_in.vehicle = vehicle;    
+
+    Pose::Ptr pose_ref = (*graph_ptr).getSensorVariable(id_ref);
+    Pose::Ptr pose_in = (*graph_ptr).getSensorVariable(id_in);
+    
+    // if(pose_ref==nullptr||pose_in==nullptr){
+    //     res.validate_sensor_name = false;
+    // }
+
+    T_ref.setTranslation((*pose_ref).getData().getTranslation());
+    T_ref.setRotation((*pose_ref).getData().getRotation());
+
+    T_in.setTranslation((*pose_in).getData().getTranslation());
+    T_in.setRotation((*pose_in).getData().getRotation());
+
+    geometry_msgs::Pose result_pose = transformToPose(T_ref.inv()*T_in);
+
+    res.calibration_result_vec.push_back(result_pose.position.x);
+    res.calibration_result_vec.push_back(result_pose.position.y);
+    res.calibration_result_vec.push_back(result_pose.position.z);
+    res.calibration_result_vec.push_back(result_pose.orientation.x);
+    res.calibration_result_vec.push_back(result_pose.orientation.y);
+    res.calibration_result_vec.push_back(result_pose.orientation.z);
+    res.calibration_result_vec.push_back(result_pose.orientation.w);
+
+    res.validate_sensor_name = true;
+    return true;
+}
+
 void optimizeMsgCallback(const std_msgs::EmptyConstPtr &msg){
     (*graph_ptr).optimize(false);
 }
 
-float get3dDistance(tf::Vector3 vector1, tf::Vector3 vector2)
+void rClickCallback(const geometry_msgs::PointConstPtr &msg)
 {
-    return pow(pow(vector1.getX() - vector2.getX(), 2) + pow(vector1.getY() - vector2.getY(), 2) + pow(vector1.getZ() - vector2.getZ(), 2), 0.5);
+    ROS_INFO("clicked");
+    int index = findClosestPoint(tf::Vector3(msg->x, msg->y, msg->z));
+    ROS_INFO("closest index: %d", index);
+    
+    index_of_ref_pc = index;
+    setMarkerColorByIndex();
+    setRqtConfigByIndex();
+}
+void iClickCallback(const geometry_msgs::PointConstPtr &msg)
+{
+    ROS_INFO("clicked");
+    int index = findClosestPoint(tf::Vector3(msg->x, msg->y, msg->z));
+    ROS_INFO("closest index: %d", index);
+    
+    index_of_in_pc = index;
+    setMarkerColorByIndex();
+    setRqtConfigByIndex();
 }
 
 int findClosestPoint(tf::Vector3 new_vector)
@@ -765,24 +807,36 @@ void setRqtConfigByIndex(){
     }
     server_ptr_->updateConfig(global_config_);
 }
-void rClickCallback(const geometry_msgs::PointConstPtr &msg)
-{
-    ROS_INFO("clicked");
-    int index = findClosestPoint(tf::Vector3(msg->x, msg->y, msg->z));
-    ROS_INFO("closest index: %d", index);
-    
-    index_of_ref_pc = index;
-    setRqtConfigByIndex();
+
+//TODO
+void setMarkerColorByIndex(){
+    for(int i=0; i<frame_num; i++){
+        visualization_msgs::InteractiveMarker temp_int_marker;
+        if(!marker_server_->get("marker" + std::to_string(i), temp_int_marker)){
+            ROS_WARN("Wrong Marker name");
+            return;
+        }
+        if(i==index_of_ref_pc){
+            temp_int_marker.controls.at(0).markers.at(0).color.r = 0.5;
+            temp_int_marker.controls.at(0).markers.at(0).color.g = 0;
+            temp_int_marker.controls.at(0).markers.at(0).color.b = 0;
+        }
+        else if(i==index_of_in_pc){
+            temp_int_marker.controls.at(0).markers.at(0).color.r = 0;
+            temp_int_marker.controls.at(0).markers.at(0).color.g = 0;
+            temp_int_marker.controls.at(0).markers.at(0).color.b = 0.5;
+        }
+        else{
+            temp_int_marker.controls.at(0).markers.at(0).color.r = 0.5;
+            temp_int_marker.controls.at(0).markers.at(0).color.g = 0.5;
+            temp_int_marker.controls.at(0).markers.at(0).color.b = 0.5;    
+        }
+        marker_server_->erase("marker" + std::to_string(i));
+        marker_server_->insert(temp_int_marker);
+    }
+    marker_server_->applyChanges();
 }
-void iClickCallback(const geometry_msgs::PointConstPtr &msg)
-{
-    ROS_INFO("clicked");
-    int index = findClosestPoint(tf::Vector3(msg->x, msg->y, msg->z));
-    ROS_INFO("closest index: %d", index);
-    
-    index_of_in_pc = index;
-    setRqtConfigByIndex();
-}
+
 void addMsgCallback(const std_msgs::EmptyConstPtr &msg)
 {
     ROS_INFO("Add factor");
@@ -858,10 +912,10 @@ int main(int argc, char **argv)
     pose_pub = nh.advertise<geometry_msgs::PoseArray>("/graph_pose", 1, true);
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/graph_pose_pc", 1, true);
     arrow_edge_pub = nh.advertise<visualization_msgs::Marker>("/edge_arrow", 1);
-    transforminfo_pub = nh.advertise<pg_editor::TransformInfo>("/transform_info", 1, true); //for publishing clicked arrow
     
     ros::Subscriber r_click_subs = nh.subscribe("/rf_tool_r_click", 1, rClickCallback);
     ros::Subscriber i_click_subs = nh.subscribe("/rf_tool_i_click", 1, iClickCallback);
+
     ros::Subscriber add_msg_subs = nh.subscribe("/pg_editor_panel/add", 1, addMsgCallback);
     ros::Subscriber remove_msg_subs = nh.subscribe("/pg_editor_panel/remove", 1, removeMsgCallback);
     ros::Subscriber optimize_msg_subs = nh.subscribe("/pg_editor_panel/optimize", 1, optimizeMsgCallback);    
@@ -883,7 +937,7 @@ int main(int argc, char **argv)
 
     do_optimize = true;
 
-    server.reset(new InteractiveMarkerServer("pose_graph_example_node", "", false));
+    marker_server_.reset(new InteractiveMarkerServer("main_server", "", false));
 
     tf::TransformBroadcaster broadcaster;
     tf::TransformBroadcaster sensor_broadcaster;

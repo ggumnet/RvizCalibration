@@ -64,7 +64,9 @@ Panels:
     Help Height: 70
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /Marker1
+        - /Marker1/Status1
       Splitter Ratio: 0.5
     Tree Height: 383
 Toolbars:
@@ -193,15 +195,6 @@ Visualization Manager:
       Show Visual Aids: false
       Update Topic: /menu/update
       Value: true
-    - Class: rviz/InteractiveMarkers
-      Enable Transparency: true
-      Enabled: true
-      Name: InteractiveMarkers
-      Show Axes: false
-      Show Descriptions: true
-      Show Visual Aids: false
-      Update Topic: /pose_graph_example_node/update
-      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -239,7 +232,7 @@ Visualization Manager:
       Show Axes: false
       Show Descriptions: true
       Show Visual Aids: false
-      Update Topic: /pose_graph_example_node/update
+      Update Topic: /main_server/update
       Value: true
     - Class: rviz/TF
       Enabled: true
@@ -280,8 +273,8 @@ Visualization Manager:
       Marker Topic: /edge_arrow
       Name: Marker
       Namespaces:
-        {}
-      Queue Size: 100
+        edges: true
+      Queue Size: 1
       Value: true
     - Class: rviz/Marker
       Enabled: true
@@ -318,25 +311,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 20.74923324584961
+      Distance: 29.847681045532227
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.061642646789551
-        Y: 0.5239636898040771
-        Z: -1.2487346793932375e-5
+        X: 2.6971418857574463
+        Y: -0.8393502235412598
+        Z: -1.1533672477526125e-5
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 1.3047960996627808
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 2.9949464797973633
+      Yaw: 3.0699477195739746
     Saved: ~
 Window Geometry:
   Displays:

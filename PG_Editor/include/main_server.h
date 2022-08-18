@@ -1,13 +1,11 @@
-boost::shared_ptr<InteractiveMarkerServer> server;
+boost::shared_ptr<InteractiveMarkerServer> marker_server_;
 
 ros::Publisher relative_frame_pub;
 ros::Subscriber relative_pose_sub;
 
-// marker and edges publisher
 ros::Publisher edge_pub;
 ros::Publisher pose_pub;
 ros::Publisher pose_pc_pub;
-ros::Publisher transforminfo_pub;
 ros::Publisher arrow_edge_pub;
 
 ros::ServiceClient pointcloud_client;
@@ -39,6 +37,9 @@ geometry_msgs::Pose ref_pose, dest_pose;
 int index_of_ref_pc = -1, index_of_in_pc = -1;
 
 pg_editor::InitialConfigurationConfig global_config_;
+dynamic_reconfigure::Server<pg_editor::InitialConfigurationConfig> *server_ptr_;
 
 bool setFrameNum();
-dynamic_reconfigure::Server<pg_editor::InitialConfigurationConfig> *server_ptr_;
+int findClosestPoint(tf::Vector3 new_vector);
+void setRqtConfigByIndex();
+void setMarkerColorByIndex();
