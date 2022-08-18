@@ -15,6 +15,7 @@
 #include <pg_editor/SendConfiguration.h>
 
 using namespace pg_lib;
+
 #include "type_conversion.h"
 #include "print_tool.h"
 #include "configurations.h"

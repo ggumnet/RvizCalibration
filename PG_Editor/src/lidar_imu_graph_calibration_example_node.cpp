@@ -33,7 +33,6 @@ bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, Transform &T
     return true;
 }
 
-
 bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, pointcloud_tools::SensorFrameID &sensor_id, Transform &T, ParamMatrix &H)
 {
     auto pose = graph.getVariable<Pose>(id, true);

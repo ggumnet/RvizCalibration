@@ -77,13 +77,10 @@ Transform iterativeNdt(Transform T_init, sensor_msgs::PointCloud2 pc_ref, sensor
     return T_est;
 }
 
-//TODO
 bool matching_result_callback(pg_editor::GetNDTMatchingResult::Request& req, pg_editor::GetNDTMatchingResult::Response& res){
     pg_editor::GetPointcloud pointcloud_service;
     sensor_msgs::PointCloud2 pointcloud1, pointcloud2;
     Transform T_init;
-
-    //ROS_INFO("matching result callback called");
 
     pointcloud1 = req.pointcloud1;
     pointcloud2 = req.pointcloud2;

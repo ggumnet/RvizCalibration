@@ -156,7 +156,7 @@ namespace markerhandler
         menu_handler.insert(pose_menu, "qz " + std::to_string(pose.orientation.z));
         menu_handler.insert(pose_menu, "qw " + std::to_string(pose.orientation.w));
         menu_handler.insert(set_menu, "Set First", &setFirst);
-        menu_handler.insert(set_menu, "Set Second", &setFirst);
+        menu_handler.insert(set_menu, "Set Second", &setSecond);
         return menu_handler;
     }
 }
@@ -462,7 +462,7 @@ geometry_msgs::Pose requestNDTMatching(int source_time_step, int dest_time_step,
 
 void visualize3Pointclouds()
 {
-    ROS_WARN("ref in: %d %d", index_of_ref_pc, index_of_in_pc);
+    //ROS_WARN("ref in: %d %d", index_of_ref_pc, index_of_in_pc);
 
     sensor_msgs::PointCloud2 pointcloud_ref;
     sensor_msgs::PointCloud2 pointcloud_in;
@@ -765,6 +765,7 @@ void rClickCallback(const geometry_msgs::PointConstPtr &msg)
     setMarkerColorByIndex();
     setRqtConfigByIndex();
 }
+
 void iClickCallback(const geometry_msgs::PointConstPtr &msg)
 {
     ROS_INFO("clicked");
@@ -813,7 +814,6 @@ void setMarkerColorByIndex(){
     for(int i=0; i<frame_num; i++){
         visualization_msgs::InteractiveMarker temp_int_marker;
         if(!marker_server_->get("marker" + std::to_string(i), temp_int_marker)){
-            ROS_WARN("Wrong Marker name");
             return;
         }
         if(i==index_of_ref_pc){
@@ -849,6 +849,7 @@ void addMsgCallback(const std_msgs::EmptyConstPtr &msg)
     index_of_ref_pc = -1;
     index_of_in_pc = -1;
 }
+
 void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
 {
     ROS_INFO("Remove factor");
@@ -861,6 +862,7 @@ void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
     index_of_ref_pc = -1;
     index_of_in_pc = -1;
 }
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
