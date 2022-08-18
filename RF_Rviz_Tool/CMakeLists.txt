@@ -35,7 +35,8 @@ add_definitions(-DQT_NO_KEYWORDS)
 ## Here we specify the list of source files.
 ## The generated MOC files are included automatically as headers.
 set(SRC_FILES
-  src/tool_a_click.cpp
+  src/tool_r_click.cpp
+  src/tool_i_click.cpp
   src/tool_a.cpp
 )
 

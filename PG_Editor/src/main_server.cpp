@@ -38,7 +38,7 @@ using namespace pg_lib;
 #include "configurations.h"
 #include "read_configuration.h"
 #include "rot2quat.h"
-#include "transform_pose_conversion.h"
+#include "type_conversion.h"
 #include "print_tool.h"
 
 #define ADD 0
@@ -49,9 +49,9 @@ using namespace pg_lib;
 //Reference frame: "map" frame
 
 //TOSET
-namespace initconfiguration
+namespace init
 {
-    void initPointclouds()
+    void pointclouds()
     {
         pg_editor::GetPointcloud pointcloud_service;
         rideflux_msgs::SensorDataID data_id;
@@ -70,22 +70,13 @@ namespace initconfiguration
             }
         }
     }
-    void initPointcloudPublisherList(ros::NodeHandle &nh)
-    {
-        ros::Publisher publisher;
-        for (int i = 0; i < frame_num; i++)
-        {
-            publisher = nh.advertise<sensor_msgs::PointCloud2>("/pc_" + std::to_string(i), 1);
-            pc_publisher_vec_.push_back(publisher);
-        }
-    }
-    void init3PointcloudPublisherList(ros::NodeHandle &nh)
+    void pointcloudPublishers(ros::NodeHandle &nh)
     {
         pc_in_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_in", 1);
         pc_ref_pub = nh.advertise<sensor_msgs::PointCloud2>("/pc_ref", 1);
         map_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/map_pc", 1);
     }
-    void initSensorDataID()
+    void sensorDataIDMap()
     {
         pointcloud_tools::SensorDataID temp_id = init_id;
         for(int i=0; i<frame_num; i++){
@@ -94,7 +85,7 @@ namespace initconfiguration
         }
     }
 }
-namespace markerhandling
+namespace markerhandler
 {
     // make marker at the certain position
     InteractiveMarker makeEmptyMarker(geometry_msgs::Pose pose, std::string frame_id)
@@ -110,13 +101,13 @@ namespace markerhandling
         return int_marker;
     }
     // make box according to the size of InteractiveMarker
-    Marker makeBox(InteractiveMarker &msg)
+    Marker makeSphere(InteractiveMarker &msg)
     {
         Marker marker;
         marker.type = Marker::SPHERE;
-        marker.scale.x = msg.scale * 0.45;
-        marker.scale.y = msg.scale * 0.45;
-        marker.scale.z = msg.scale * 0.45;
+        marker.scale.x = msg.scale * 0.35;
+        marker.scale.y = msg.scale * 0.35;
+        marker.scale.z = msg.scale * 0.35;
         marker.color.r = 0.5;
         marker.color.g = 0.5;
         marker.color.b = 0.5;
@@ -126,7 +117,7 @@ namespace markerhandling
     // make menu marker and push it to server
     void makeMenuMarker(std::string name, geometry_msgs::Pose pose, std::string frame_id)
     {
-        InteractiveMarker int_marker = markerhandling::makeEmptyMarker(pose, frame_id);
+        InteractiveMarker int_marker = markerhandler::makeEmptyMarker(pose, frame_id);
         int_marker.name = name;
 
         InteractiveMarkerControl control;
@@ -134,7 +125,7 @@ namespace markerhandling
         control.interaction_mode = InteractiveMarkerControl::BUTTON;
         control.always_visible = true;
 
-        control.markers.push_back(markerhandling::makeBox(int_marker));
+        control.markers.push_back(markerhandler::makeSphere(int_marker));
         int_marker.controls.push_back(control);
 
         server->insert(int_marker);
@@ -155,6 +146,7 @@ namespace markerhandling
         MenuHandler menu_handler;
         MenuHandler::EntryHandle pose_menu, set_menu;
         pose_menu = menu_handler.insert("pose");
+        set_menu = menu_handler.insert("set");
         menu_handler.insert(pose_menu, "tx " + std::to_string(pose.position.x));
         menu_handler.insert(pose_menu, "ty " + std::to_string(pose.position.y));
         menu_handler.insert(pose_menu, "tz " + std::to_string(pose.position.z));
@@ -162,13 +154,11 @@ namespace markerhandling
         menu_handler.insert(pose_menu, "qy " + std::to_string(pose.orientation.y));
         menu_handler.insert(pose_menu, "qz " + std::to_string(pose.orientation.z));
         menu_handler.insert(pose_menu, "qw " + std::to_string(pose.orientation.w));
-        menu_handler.insert("Set First", &setFirst);
-        //menu_handler.insert("Set Second", &setSecond);
+        menu_handler.insert(set_menu, "Set First", &setFirst);
+        menu_handler.insert(set_menu, "Set Second", &setFirst);
         return menu_handler;
     }
 }
-
-geometry_msgs::Pose ref_pose, dest_pose;
 
 void setRefFrame(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback)
 {
@@ -210,9 +200,9 @@ void visualizeGraph(const Graph &graph, ros::Publisher &edge_pub, ros::Publisher
         {
             MenuHandler menu_handler;
             i++;
-            markerhandling::makeMenuMarker("marker" + std::to_string(i), pose, frame_id); // make menu marker and add to server
+            markerhandler::makeMenuMarker("marker" + std::to_string(i), pose, frame_id); // make menu marker and add to server
             // ROS_INFO("done");
-            menu_handler = markerhandling::initMenu(pose);
+            menu_handler = markerhandler::initMenu(pose);
             menu_handler.apply(*server, "marker" + std::to_string(i)); // apply menu entry to menu marker
         }
     }
@@ -282,7 +272,6 @@ bool addAbsFactor(Graph &graph, pointcloud_tools::SensorDataID &id, Transform &T
     }
     return true;
 }
-
 
 bool addAbsFactorWithSensor(Graph &graph, pointcloud_tools::SensorDataID &id, pointcloud_tools::SensorFrameID &sensor_id, Transform &T, ParamMatrix &H)
 {
@@ -510,21 +499,6 @@ void addAbsFactorFromIMUPose(Graph &graph)
     }
 }
 
-void addIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
-{
-    ROS_INFO("Add factor");
-    // publish "/relative_frame"
-    add_or_remove = ADD;
-    requestNDTMatching(msg->data.at(0), msg->data.at(1), true);
-}
-
-void removeIndexArrayCallback(const std_msgs::Int32MultiArray::ConstPtr &msg)
-{
-    ROS_INFO("Remove factor");
-    add_or_remove = REMOVE;
-    requestNDTMatching(msg->data.at(0), msg->data.at(1), true);
-}
-
 void saveImuPosesFromSrv(pg_editor::GetImuPoseResult &get_ECEF_pose_result_srv){
     ROS_WARN("ecef result size: %d", get_ECEF_pose_result_srv.response.imu_pose_array.poses.size());
     geometry_msgs::Pose pose0 = get_ECEF_pose_result_srv.response.imu_pose_array.poses.at(0);
@@ -707,6 +681,7 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
         config.add_frame_num_in = "";
     }
 }
+
 bool setFrameNum(){
     int cnt = 0;
     std::string path = root_dirname_+vehicle+"/"+bag_time+"/"+sensor_vec_.at(0)+"/";
@@ -774,6 +749,7 @@ int findClosestPoint(tf::Vector3 new_vector)
     }
     return index;
 }
+
 void setRqtConfigByIndex(){
     if(index_of_ref_pc == -1) {
         global_config_.add_frame_num_ref = "";
@@ -789,34 +765,24 @@ void setRqtConfigByIndex(){
     }
     server_ptr_->updateConfig(global_config_);
 }
-
-void aClickCallback(const geometry_msgs::PointConstPtr &msg)
+void rClickCallback(const geometry_msgs::PointConstPtr &msg)
 {
     ROS_INFO("clicked");
     int index = findClosestPoint(tf::Vector3(msg->x, msg->y, msg->z));
     ROS_INFO("closest index: %d", index);
     
-    if (index_of_ref_pc==INDEX_NOT_SET&&index_of_in_pc==INDEX_NOT_SET)
-    {
-        index_of_ref_pc = index;
-    }
-    else if(index_of_in_pc==INDEX_NOT_SET)
-    {
-        index_of_in_pc = index;
-        publishArrowEdge(index_of_ref_pc, index_of_in_pc);
-    }
-    else if(index_of_ref_pc==INDEX_NOT_SET)
-    {
-        index_of_ref_pc = index;
-        publishArrowEdge(index_of_ref_pc, index_of_in_pc);
-    }
-    else{
-        index_of_ref_pc = index;
-        index_of_in_pc = -1;
-    }
+    index_of_ref_pc = index;
     setRqtConfigByIndex();
 }
-
+void iClickCallback(const geometry_msgs::PointConstPtr &msg)
+{
+    ROS_INFO("clicked");
+    int index = findClosestPoint(tf::Vector3(msg->x, msg->y, msg->z));
+    ROS_INFO("closest index: %d", index);
+    
+    index_of_in_pc = index;
+    setRqtConfigByIndex();
+}
 void addMsgCallback(const std_msgs::EmptyConstPtr &msg)
 {
     ROS_INFO("Add factor");
@@ -829,7 +795,6 @@ void addMsgCallback(const std_msgs::EmptyConstPtr &msg)
     index_of_ref_pc = -1;
     index_of_in_pc = -1;
 }
-
 void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
 {
     ROS_INFO("Remove factor");
@@ -842,7 +807,6 @@ void removeMsgCallback(const std_msgs::EmptyConstPtr &msg)
     index_of_ref_pc = -1;
     index_of_in_pc = -1;
 }
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_server");
@@ -876,10 +840,9 @@ int main(int argc, char **argv)
     send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
     sendConfiguration();
 
-    initconfiguration::initPointclouds();
-    initconfiguration::initPointcloudPublisherList(nh);
-    initconfiguration::init3PointcloudPublisherList(nh);
-    initconfiguration::initSensorDataID();
+    init::pointclouds();
+    init::pointcloudPublishers(nh);
+    init::sensorDataIDMap();
 
     ros::ServiceClient Tf_broadcast_info_client = nh.serviceClient<pg_editor::TfBroadcastInfo>("/Tf_broadcast_info");
     pg_editor::TfBroadcastInfo Tf_broadcast_info_srv;
@@ -896,11 +859,9 @@ int main(int argc, char **argv)
     pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/graph_pose_pc", 1, true);
     arrow_edge_pub = nh.advertise<visualization_msgs::Marker>("/edge_arrow", 1);
     transforminfo_pub = nh.advertise<pg_editor::TransformInfo>("/transform_info", 1, true); //for publishing clicked arrow
-
-    ros::Subscriber add_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/add_edge_index_array", 10, addIndexArrayCallback);
-    ros::Subscriber remove_index_subs = nh.subscribe<std_msgs::Int32MultiArray>("/remove_edge_index_array", 10, removeIndexArrayCallback);
     
-    ros::Subscriber a_click_subs = nh.subscribe("/rf_tool_a_click", 1, aClickCallback);
+    ros::Subscriber r_click_subs = nh.subscribe("/rf_tool_r_click", 1, rClickCallback);
+    ros::Subscriber i_click_subs = nh.subscribe("/rf_tool_i_click", 1, iClickCallback);
     ros::Subscriber add_msg_subs = nh.subscribe("/pg_editor_panel/add", 1, addMsgCallback);
     ros::Subscriber remove_msg_subs = nh.subscribe("/pg_editor_panel/remove", 1, removeMsgCallback);
     ros::Subscriber optimize_msg_subs = nh.subscribe("/pg_editor_panel/optimize", 1, optimizeMsgCallback);    

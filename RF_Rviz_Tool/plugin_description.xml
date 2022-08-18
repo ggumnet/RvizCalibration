@@ -1,9 +1,16 @@
 <library path="lib/librf_rviz_tool"> 
-  <class name="rf_rviz_tool/AClick"
-         type="rf_rviz_tool::ToolAClick"
+  <class name="rf_rviz_tool/RClick"
+         type="rf_rviz_tool::ToolRClick"
          base_class_type="rviz::Tool">
     <description>
-      handle key for 'AClick' function
+      handle key for 'RClick' function
+    </description>
+  </class>
+  <class name="rf_rviz_tool/IClick"
+         type="rf_rviz_tool::ToolIClick"
+         base_class_type="rviz::Tool">
+    <description>
+      handle key for 'IClick' function
     </description>
   </class>
   <class name="rf_rviz_tool/a"

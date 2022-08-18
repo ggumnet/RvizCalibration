@@ -1,5 +1,5 @@
-#ifndef TRANSFORM_POSE_CONVERSION_H
-#define TRANSFORM_POSE_CONVERSION_H
+#ifndef TYPE_CONVERSION_H
+#define TYPE_CONVERSION_H
 
 #include <rot2quat.h>
 

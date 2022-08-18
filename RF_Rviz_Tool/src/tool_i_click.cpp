@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Willow Garage, Inc.
+ * Copyright (c) 2011, Willow Garage, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,52 +26,74 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef TOOL_A_CLICK_H
-#define TOOL_A_CLICK_H
 
-#include <ros/ros.h>
-#include <rviz/tool.h>
-#include <QCursor>
-#include <QObject>
-namespace Ogre
-{
-class SceneNode;
-class Vector3;
-} // namespace Ogre
+#include <OGRE/OgreSceneNode.h>
+#include <OGRE/OgreSceneManager.h>
+#include <OGRE/OgreEntity.h>
 
-namespace rviz
-{
-class VectorProperty;
-class VisualizationManager;
-class ViewportMouseEvent;
-} // namespace rviz
+#include <ros/console.h>
+
+#include <rviz/viewport_mouse_event.h>
+#include <rviz/visualization_manager.h>
+#include <rviz/mesh_loader.h>
+#include <rviz/geometry.h>
+#include <geometry_msgs/Point.h>
+#include <rviz/properties/vector_property.h>
+
+#include "tool_i_click.h"
 
 namespace rf_rviz_tool
 {
-
-class ToolAClick : public rviz::Tool
+ToolIClick::ToolIClick()
 {
-  Q_OBJECT
-public:
-  ToolAClick();
-  ~ToolAClick();
+  shortcut_key_ = Qt::Key_I;
+  keyPub = nh.advertise<geometry_msgs::Point>("rf_tool_i_click", 1);
+}
+ToolIClick::~ToolIClick()
+{
+}
+void ToolIClick::onInitialize()
+{
+}
+void ToolIClick::activate()
+{
+  //ROS_INFO_STREAM("tool click activatged\n");
 
-  virtual void onInitialize();
+  //deactivate();
+}
+void ToolIClick::deactivate()
+{
+  ;
+}
+int ToolIClick::processMouseEvent(rviz::ViewportMouseEvent &event)
+{
+  if (event.leftDown())
+  {
+    Ogre::Vector3 intersection;
+    Ogre::Plane ground_plane(Ogre::Vector3::UNIT_Z, 0.0f);
+    geometry_msgs::Point point;
+    rviz::getPointOnPlaneFromWindowXY(event.viewport, ground_plane, event.x, event.y, intersection);
+    point.x = intersection.x;
+    point.y = intersection.y;
+    point.z = intersection.z;
+    keyPub.publish(point);
+    return Finished;
+  }
+}
+void ToolIClick::save(rviz::Config config) const
+{
+  rviz::Tool::save(config);
+}
+void ToolIClick::load(const rviz::Config &config)
+{
+  rviz::Tool::load(config);
+}
 
-  virtual void activate();
-  virtual void deactivate();
-
-  virtual int processKeyEvent(QKeyEvent *event, rviz::RenderPanel *panel);
-  virtual int processMouseEvent(rviz::ViewportMouseEvent &event);
-
-  virtual void load(const rviz::Config &config);
-  virtual void save(rviz::Config config) const;
-
-private:
-  ros::NodeHandle nh;
-  ros::Publisher keyPub;
-};
-
+int ToolIClick::processKeyEvent(QKeyEvent *event, rviz::RenderPanel *panel)
+{
+}
 } // end namespace rf_rviz_tool
 
-#endif // TOOL_CLICK_H
+#include <pluginlib/class_list_macros.h>
+PLUGINLIB_EXPORT_CLASS(rf_rviz_tool::ToolIClick, rviz::Tool)
+// END_TUTORIAL

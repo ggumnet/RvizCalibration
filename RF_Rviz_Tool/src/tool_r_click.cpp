@@ -40,32 +40,32 @@
 #include <geometry_msgs/Point.h>
 #include <rviz/properties/vector_property.h>
 
-#include "tool_a_click.h"
+#include "tool_r_click.h"
 
 namespace rf_rviz_tool
 {
-ToolAClick::ToolAClick()
+ToolRClick::ToolRClick()
 {
-  shortcut_key_ = Qt::Key_A;
-  keyPub = nh.advertise<geometry_msgs::Point>("rf_tool_a_click", 1);
+  shortcut_key_ = Qt::Key_R;
+  keyPub = nh.advertise<geometry_msgs::Point>("rf_tool_r_click", 1);
 }
-ToolAClick::~ToolAClick()
-{
-}
-void ToolAClick::onInitialize()
+ToolRClick::~ToolRClick()
 {
 }
-void ToolAClick::activate()
+void ToolRClick::onInitialize()
+{
+}
+void ToolRClick::activate()
 {
   //ROS_INFO_STREAM("tool click activatged\n");
 
   //deactivate();
 }
-void ToolAClick::deactivate()
+void ToolRClick::deactivate()
 {
   ;
 }
-int ToolAClick::processMouseEvent(rviz::ViewportMouseEvent &event)
+int ToolRClick::processMouseEvent(rviz::ViewportMouseEvent &event)
 {
   if (event.leftDown())
   {
@@ -80,20 +80,20 @@ int ToolAClick::processMouseEvent(rviz::ViewportMouseEvent &event)
     return Finished;
   }
 }
-void ToolAClick::save(rviz::Config config) const
+void ToolRClick::save(rviz::Config config) const
 {
   rviz::Tool::save(config);
 }
-void ToolAClick::load(const rviz::Config &config)
+void ToolRClick::load(const rviz::Config &config)
 {
   rviz::Tool::load(config);
 }
 
-int ToolAClick::processKeyEvent(QKeyEvent *event, rviz::RenderPanel *panel)
+int ToolRClick::processKeyEvent(QKeyEvent *event, rviz::RenderPanel *panel)
 {
 }
 } // end namespace rf_rviz_tool
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(rf_rviz_tool::ToolAClick, rviz::Tool)
+PLUGINLIB_EXPORT_CLASS(rf_rviz_tool::ToolRClick, rviz::Tool)
 // END_TUTORIAL
