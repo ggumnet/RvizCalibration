@@ -624,19 +624,18 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
         return;
     }
     configuration_set_done = true;
-    if(config.add_frame_num_ref.compare("")==0){
+    if(config.add_frame_num_ref.compare("")==0||!isNumber(config.add_frame_num_ref)||std::stoi(config.add_frame_num_ref)>=frame_num){
         index_of_ref_pc = -1;
     }
-    if(config.add_frame_num_in.compare("")==0){
-        index_of_in_pc = -1;
-    }
-    if(config.add_frame_num_ref.compare("")!=0){
+    else{
         index_of_ref_pc = std::stoi(config.add_frame_num_ref);
     }
-    if(config.add_frame_num_in.compare("")!=0){
+    if(config.add_frame_num_in.compare("")==0||!isNumber(config.add_frame_num_in)||std::stoi(config.add_frame_num_in)>=frame_num){
+        index_of_in_pc = -1;
+    }
+    else{
         index_of_in_pc = std::stoi(config.add_frame_num_in);
     }
-
     if(index_of_ref_pc==-1||index_of_in_pc==-1){
         ROS_WARN("Index Not Set Yet");
         config.Match = false;
@@ -679,7 +678,7 @@ bool setFrameNum(){
         return false;
     }
     frame_num = cnt;
-    ROS_WARN("frame number %d", frame_num);
+    //ROS_WARN("frame number %d", frame_num);
     return true;
 }
 
