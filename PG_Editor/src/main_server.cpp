@@ -602,6 +602,9 @@ void redefineRefToInTransformByNDT(geometry_msgs::Pose &new_pose){
     ros::spinOnce();
 }
 
+
+
+
 void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t level)
 {
     ROS_INFO("config call back called");
@@ -663,6 +666,42 @@ void configCallback(pg_editor::InitialConfigurationConfig &config, uint32_t leve
         index_of_ref_pc = -1;
         index_of_in_pc = -1;
     }
+    afterConfigurationSet();
+}
+
+void callTfBroadcaster(){
+    pg_editor::TfBroadcastInfo Tf_broadcast_info_srv;
+    if(is_single_lidar_imu_graph){
+        Tf_broadcast_info_srv.request.sensor_name = sensor_vec_.at(0);
+    }
+    Tf_broadcast_info_client.call(Tf_broadcast_info_srv);
+}
+
+void afterConfigurationSet(){
+    sendConfiguration();
+    init::pointclouds();
+    init::sensorDataIDMap();
+
+    pg_editor::GetImuPoseResult get_ECEF_pose_result_srv;
+    ECEF_pose_result_client.call(get_ECEF_pose_result_srv);
+    saveImuPosesFromSrv(get_ECEF_pose_result_srv);
+    addAbsFactorFromIMUPose((*graph_ptr));
+
+    pointcloud_tools::SensorFrameID lidar_sensor_id;
+    lidar_sensor_id.frame_id = init_id.sensor;
+    lidar_sensor_id.vehicle = init_id.vehicle;
+    (*graph_ptr).getSensorVariable(lidar_sensor_id, true);
+    
+    marker_server_.reset(new InteractiveMarkerServer("main_server", "", false));
+
+    addEdges();
+
+    //FOR DEBUG
+    //true -> print sensor values
+    //graph.optimize(true);
+    (*graph_ptr).optimize(false);
+
+    callTfBroadcaster();
 }
 
 bool setFrameNum(){
@@ -706,6 +745,7 @@ void forDebugSetConfiguration(){
     sensor_vec_.push_back("pandar64_0");
     init_id.sensor = "pandar64_0"; 
     is_single_lidar_imu_graph = true;
+    setFrameNum();
 }
 
 float get3dDistance(tf::Vector3 vector1, tf::Vector3 vector2)
@@ -870,8 +910,22 @@ int main(int argc, char **argv)
     graph_ptr = &graph;
     pointcloud_client = nh.serviceClient<pg_editor::GetPointcloud>("/pc_read_service");
 
-    dynamic_reconfigure::Server<pg_editor::InitialConfigurationConfig> server_;
+    edge_pub = nh.advertise<visualization_msgs::Marker>("/graph_edge", 1, true);
+    pose_pub = nh.advertise<geometry_msgs::PoseArray>("/graph_pose", 1, true);
+    pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/graph_pose_pc", 1, true);
+    arrow_edge_pub = nh.advertise<visualization_msgs::Marker>("/edge_arrow", 1);
 
+    ros::ServiceClient Tf_broadcast_info_client = nh.serviceClient<pg_editor::TfBroadcastInfo>("/Tf_broadcast_info");
+    matching_result_client = nh.serviceClient<pg_editor::GetNDTMatchingResult>("/matching_result");
+    ECEF_pose_result_client = nh.serviceClient<pg_editor::GetImuPoseResult>("/ECEF_pose_result");
+    send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
+
+    tf::TransformBroadcaster broadcaster;
+    tf::TransformBroadcaster sensor_broadcaster;
+
+    init::pointcloudPublishers(nh);
+
+    dynamic_reconfigure::Server<pg_editor::InitialConfigurationConfig> server_;
     server_.setCallback(configCallback);
     server_ptr_ = &server_;
 
@@ -884,36 +938,10 @@ int main(int argc, char **argv)
 
     //FOR DEBUG
     forDebugSetConfiguration();
-
+    afterConfigurationSet();
     graph.setMaxIteration(max_iteration);
 
-    ROS_INFO("config set done");
 
-    //FOR DEBUG
-    setFrameNum();
-
-    send_configuration_client = nh.serviceClient<pg_editor::SendConfiguration>("/configuration");
-    sendConfiguration();
-
-    init::pointclouds();
-    init::pointcloudPublishers(nh);
-    init::sensorDataIDMap();
-
-    ros::ServiceClient Tf_broadcast_info_client = nh.serviceClient<pg_editor::TfBroadcastInfo>("/Tf_broadcast_info");
-    pg_editor::TfBroadcastInfo Tf_broadcast_info_srv;
-        
-    if(is_single_lidar_imu_graph){
-        Tf_broadcast_info_srv.request.sensor_name = sensor_vec_.at(0);
-    }
-    Tf_broadcast_info_client.call(Tf_broadcast_info_srv);
-
-    ROS_WARN("return done");
-
-    edge_pub = nh.advertise<visualization_msgs::Marker>("/graph_edge", 1, true);
-    pose_pub = nh.advertise<geometry_msgs::PoseArray>("/graph_pose", 1, true);
-    pose_pc_pub = nh.advertise<sensor_msgs::PointCloud2>("/graph_pose_pc", 1, true);
-    arrow_edge_pub = nh.advertise<visualization_msgs::Marker>("/edge_arrow", 1);
-    
     ros::Subscriber r_click_subs = nh.subscribe("/rf_tool_r_click", 1, rClickCallback);
     ros::Subscriber i_click_subs = nh.subscribe("/rf_tool_i_click", 1, iClickCallback);
 
@@ -922,35 +950,6 @@ int main(int argc, char **argv)
     ros::Subscriber optimize_msg_subs = nh.subscribe("/pg_editor_panel/optimize", 1, optimizeMsgCallback);    
 
     ros::ServiceServer get_calibration_result_service = nh.advertiseService("/pg_editor_panel/get_calibration", getCalibrationCallback);
-
-    matching_result_client = nh.serviceClient<pg_editor::GetNDTMatchingResult>("/matching_result");
-    ECEF_pose_result_client = nh.serviceClient<pg_editor::GetImuPoseResult>("/ECEF_pose_result");
-
-    pg_editor::GetImuPoseResult get_ECEF_pose_result_srv;
-    ECEF_pose_result_client.call(get_ECEF_pose_result_srv);
-    saveImuPosesFromSrv(get_ECEF_pose_result_srv);
-    addAbsFactorFromIMUPose(graph);
-
-    pointcloud_tools::SensorFrameID lidar_sensor_id;
-    lidar_sensor_id.frame_id = init_id.sensor;
-    lidar_sensor_id.vehicle = init_id.vehicle;
-    graph.getSensorVariable(lidar_sensor_id, true);
-
-    do_optimize = true;
-
-    marker_server_.reset(new InteractiveMarkerServer("main_server", "", false));
-
-    tf::TransformBroadcaster broadcaster;
-    tf::TransformBroadcaster sensor_broadcaster;
-
-    addEdges();
-
-    ROS_WARN("optimize graph");
-
-    //FOR DEBUG
-    //true -> print sensor values
-    //graph.optimize(true);
-    graph.optimize(false);
 
     while (ros::ok())
     {

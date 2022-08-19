@@ -48,7 +48,7 @@ void parse_imu_data(const std::string& str, const std::string delimiters){
         ECEF_transforms_vec_.push_back(transform);
         //poses_vec_.push_back(transformToPose(transform));
     }
-    ROS_WARN("read done");
+    ROS_WARN("parse read done");
 }
 
 std::string createPCDirectoryPath(const rideflux_msgs::SensorDataID &msg) 

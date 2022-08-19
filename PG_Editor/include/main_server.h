@@ -43,3 +43,5 @@ bool setFrameNum();
 int findClosestPoint(tf::Vector3 new_vector);
 void setRqtConfigByIndex();
 void setMarkerColorByIndex();
+void afterConfigurationSet();
+void sendConfiguration();
