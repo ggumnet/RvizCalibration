@@ -33,7 +33,7 @@ void parse_imu_data(const std::string& str, const std::string delimiters){
     geometry_msgs::Pose pose;
     
     double ta[12]; //temp_array
-
+    ECEF_transforms_vec_.clear();
     for(int i=0; i<frame_num; i++){
         ++itr;
         for(int j=0; j<12; j++){
@@ -231,6 +231,8 @@ void readIMUdata(){
 }
 
 bool ECEFPoseResultCallback(pg_editor::GetImuPoseResult::Request &req, pg_editor::GetImuPoseResult::Response &res){
+    ROS_WARN("imu file name: %s", imu_file_name_.c_str());
+    readIMUdata();
     ROS_WARN("ecef size %d", ECEF_transforms_vec_.size());
     for(int i=0; i<ECEF_transforms_vec_.size(); i++)
     {
@@ -254,10 +256,12 @@ bool setConfigurationCallback(pg_editor::SendConfiguration::Request &req, pg_edi
     vehicle = req.vehicle;
     sensor_num = req.sensor_num;
     frame_num = req.frame_num;
+    data_dirname_ = root_dirname_+vehicle+"/"+bag_time+"/";
+    imu_file_name_ = data_dirname_+"pc_pose.txt";
+    sensor_vec_.clear();
     for(int i=0; i<sensor_num ;i++){
         sensor_vec_.push_back(req.sensor_vec.at(i));
     }
-    configuration_set_done = true;
     return true;
 }
 
@@ -268,14 +272,5 @@ int main(int argc, char **argv)
     ros::ServiceServer send_configuration_service = nh.advertiseService("/configuration", setConfigurationCallback);
     ros::ServiceServer pc_read_service = nh.advertiseService("/pc_read_service", pcReadCallback);
     ros::ServiceServer ECEF_pose_result_service = nh.advertiseService("/ECEF_pose_result", ECEFPoseResultCallback);
-
-    while(!configuration_set_done){
-        ros::spinOnce();
-        ros::Duration(0.1).sleep();
-    }
-
-    data_dirname_ = root_dirname_+vehicle+"/"+bag_time+"/";
-    imu_file_name_ = data_dirname_+"pc_pose.txt";
-    readIMUdata();
     ros::spin();
 }

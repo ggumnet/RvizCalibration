@@ -9,7 +9,7 @@ ros::Publisher pose_pc_pub;
 ros::Publisher arrow_edge_pub;
 
 ros::ServiceClient pointcloud_client;
-ros::ServiceClient matching_result_client, ECEF_pose_result_client, send_configuration_client;
+ros::ServiceClient matching_result_client, ECEF_pose_result_client, send_configuration_client, Tf_broadcast_info_client;
 pg_editor::GetNDTMatchingResult matching_result_service;
 
 ros::Publisher pc_in_pub;

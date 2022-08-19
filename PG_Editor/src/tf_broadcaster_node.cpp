@@ -52,9 +52,5 @@ int main(int argc, char **argv)
     broadcaster_ptr = &broadcaster;
 
     ros::ServiceServer Tf_broadcast_info_service = nh.advertiseService("/Tf_broadcast_info", TfBroadcastInfoCallback);
-    if(!Tf_broadcast_info_called){
-        ros::Duration(0.05).sleep();
-        ros::spinOnce();
-    }
     ros::spin();
 }
